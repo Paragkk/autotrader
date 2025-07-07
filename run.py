@@ -16,8 +16,8 @@ load_dotenv()
 # Add src to Python path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from main_automated import main
-from infra.logging_config import setup_logging
+from src.main_automated import main
+from src.infra.logging_config import setup_logging
 
 
 def check_environment():
