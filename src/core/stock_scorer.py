@@ -7,7 +7,7 @@ from typing import Dict, List, Any
 from datetime import datetime
 import pandas as pd
 from dataclasses import dataclass, field
-from sqlalchemy.orm import Session
+from sqlmodel import Session
 
 from db.models import StockScore
 

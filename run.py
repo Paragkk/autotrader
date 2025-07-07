@@ -8,6 +8,10 @@ import asyncio
 import os
 import sys
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Add src to Python path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -20,7 +24,7 @@ def check_environment():
     """Check if environment is properly configured"""
     print("🔍 Checking environment configuration...")
 
-    required_vars = ["ALPACA_API_KEY", "ALPACA_SECRET_KEY"]
+    required_vars = ["ALPACA_API_KEY"]
     missing_vars = []
 
     for var in required_vars:

@@ -355,24 +355,25 @@ class SignalRepository(SQLiteRepository):
         self._create_tables()
 
     def _create_tables(self):
-        """Create signals table"""
+        """Create signals table - compatible with SQLModel models"""
         create_table_sql = """
         CREATE TABLE IF NOT EXISTS signals (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             symbol TEXT NOT NULL,
-            strategy_name TEXT NOT NULL,
-            signal_type TEXT NOT NULL,  -- 'buy', 'sell', 'hold'
-            strength REAL DEFAULT 0.5,  -- Signal strength 0-1
-            price REAL,
-            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            processed BOOLEAN DEFAULT 0,
-            metadata TEXT  -- JSON string for additional signal data
+            direction TEXT NOT NULL,  -- 'buy', 'sell'
+            confidence_score REAL NOT NULL,
+            strength REAL NOT NULL,
+            generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            price_at_signal REAL NOT NULL,
+            strategy_count INTEGER NOT NULL,
+            contributing_strategies TEXT,  -- JSON string
+            status TEXT DEFAULT 'pending'  -- 'pending', 'executed', 'rejected', 'expired'
         )
         """
 
         create_index_sql = """
-        CREATE INDEX IF NOT EXISTS idx_signals_symbol_timestamp 
-        ON signals(symbol, timestamp)
+        CREATE INDEX IF NOT EXISTS idx_signals_symbol_generated_at 
+        ON signals(symbol, generated_at)
         """
 
         with sqlite3.connect(self.db_path) as conn:
@@ -384,19 +385,20 @@ class SignalRepository(SQLiteRepository):
         """Add signal record"""
         query = """
         INSERT INTO signals 
-        (symbol, strategy_name, signal_type, strength, price, timestamp, processed, metadata)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        (symbol, direction, confidence_score, strength, generated_at, price_at_signal, strategy_count, contributing_strategies, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
 
         params = (
             item["symbol"],
-            item["strategy_name"],
-            item["signal_type"],
-            item.get("strength", 0.5),
-            item.get("price"),
-            item.get("timestamp", datetime.now()),
-            item.get("processed", False),
-            item.get("metadata"),
+            item["direction"],
+            item["confidence_score"],
+            item["strength"],
+            item.get("generated_at", datetime.now()),
+            item["price_at_signal"],
+            item["strategy_count"],
+            item.get("contributing_strategies"),
+            item.get("status", "pending"),
         )
 
         with sqlite3.connect(self.db_path) as conn:
@@ -420,19 +422,19 @@ class SignalRepository(SQLiteRepository):
             query += " AND symbol = ?"
             params.append(filters["symbol"])
 
-        if "strategy_name" in filters:
-            query += " AND strategy_name = ?"
-            params.append(filters["strategy_name"])
+        if "direction" in filters:
+            query += " AND direction = ?"
+            params.append(filters["direction"])
 
-        if "signal_type" in filters:
-            query += " AND signal_type = ?"
-            params.append(filters["signal_type"])
+        if "status" in filters:
+            query += " AND status = ?"
+            params.append(filters["status"])
 
-        if "processed" in filters:
-            query += " AND processed = ?"
-            params.append(filters["processed"])
+        if "strategy_count" in filters:
+            query += " AND strategy_count >= ?"
+            params.append(filters["strategy_count"])
 
-        query += " ORDER BY timestamp DESC"
+        query += " ORDER BY generated_at DESC"
 
         if "limit" in filters:
             query += f" LIMIT {filters['limit']}"

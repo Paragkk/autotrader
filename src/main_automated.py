@@ -26,11 +26,10 @@ except ImportError:
     CronTrigger = None
     IntervalTrigger = None
 
-from sqlalchemy import create_engine, desc
-from sqlalchemy.orm import sessionmaker, Session
+from sqlmodel import create_engine, Session, SQLModel
+from sqlalchemy import desc
 
 from db.models import (
-    Base,
     ScreenedStock,
     StockScore,
     TrackedSymbol,
@@ -48,6 +47,8 @@ from brokers.alpaca.adapter import AlpacaBrokerAdapter
 from core.stock_scorer import StockScorer
 from core.order_executor import OrderExecutor
 from core.position_monitor import PositionMonitor
+from core.data_fetcher import DataFetcher
+from db.repository import SymbolRepository, StockDataRepository, SignalRepository
 from infra.logging_config import setup_logging
 
 logger = logging.getLogger(__name__)
@@ -163,9 +164,8 @@ class AutomatedTradingSystem:
 
         # Initialize database
         self.engine = create_engine(config.database_url)
-        Base.metadata.create_all(self.engine)
-        SessionLocal = sessionmaker(bind=self.engine)
-        self.db_session = SessionLocal()
+        SQLModel.metadata.create_all(self.engine)
+        self.db_session = Session(self.engine)
 
         # Initialize components
         broker_config = config.config["broker"]
@@ -178,10 +178,36 @@ class AutomatedTradingSystem:
         else:
             raise ValueError(f"Unsupported broker: {broker_config['name']}")
 
-        self.stock_screener = EnhancedStockScreener(self.broker_adapter)
+        # Initialize repositories
+        db_path = config.config["database"]["url"].replace("sqlite:///", "")
+        self.symbol_repo = SymbolRepository(db_path)
+        self.stock_data_repo = StockDataRepository(db_path)
+        self.signal_repo = SignalRepository(db_path)
+        
+        # Initialize data fetcher
+        self.data_fetcher = DataFetcher(
+            stock_data_repo=self.stock_data_repo,
+            symbol_repo=self.symbol_repo,
+            broker_adapter=self.broker_adapter
+        )
+
+        # Initialize screener with required dependencies
+        self.stock_screener = EnhancedStockScreener(
+            data_fetcher=self.data_fetcher,
+            symbol_repo=self.symbol_repo,
+            stock_data_repo=self.stock_data_repo
+        )
         self.strategy_engine = StrategyEngine(self.broker_adapter)
-        self.signal_aggregator = SignalAggregator(config.config["strategies"])
-        self.risk_manager = RiskManager(config.config["risk"], self.broker_adapter)
+        self.signal_aggregator = SignalAggregator(self.signal_repo)
+        
+        # Initialize risk manager with proper parameters
+        from core.risk_management import RiskParameters
+        risk_params = RiskParameters(
+            max_position_size_percent=config.config["risk"].get("max_exposure_per_trade", 0.05) * 100,
+            max_total_exposure_percent=config.config["risk"].get("portfolio_risk_limit", 0.15) * 100,
+            max_sector_exposure_percent=config.config["risk"].get("max_exposure_per_sector", 0.20) * 100,
+        )
+        self.risk_manager = RiskManager(risk_params)
         self.stock_scorer = StockScorer(config.config["scoring"])
         self.order_executor = OrderExecutor(self.broker_adapter, self.db_session)
         self.position_monitor = PositionMonitor(self.broker_adapter, self.db_session)
@@ -538,7 +564,7 @@ class AutomatedTradingSystem:
 
             # Generate signals
             for symbol, results in symbol_results.items():
-                signal_data = await self.signal_aggregator.aggregate_signals(results)
+                signal_data = await self.signal_aggregator.aggregate_strategy_results(results)
 
                 if (
                     signal_data["confidence"]
