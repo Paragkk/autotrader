@@ -48,18 +48,6 @@ def print_banner():
     ║                   🚀 AutoTrader Pro v1.0                    ║
     ║                                                              ║
     ║               Professional Automated Trading System          ║
-    ║                                                              ║
-    ║  Features:                                                   ║
-    ║  • Automated Stock Screening                                 ║
-    ║  • Multi-Factor Stock Scoring                                ║
-    ║  • Dynamic Symbol Tracking                                   ║
-    ║  • Advanced Strategy Engine                                  ║
-    ║  • Signal Aggregation                                        ║
-    ║  • Risk Management                                           ║
-    ║  • Automated Order Execution                                 ║
-    ║  • Continuous Position Monitoring                            ║
-    ║  • Complete Audit Logging                                    ║
-    ║                                                              ║
     ╚══════════════════════════════════════════════════════════════╝
     """
     print(banner)
