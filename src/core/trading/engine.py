@@ -218,16 +218,16 @@ class TradingEngine:
             elif condition_type == "price_below":
                 return current_price < condition["value"]
             elif condition_type == "sma_crossover":
-                sma_short = data.get(f'sma_{condition["short_period"]}')
-                sma_long = data.get(f'sma_{condition["long_period"]}')
+                sma_short = data.get(f"sma_{condition['short_period']}")
+                sma_long = data.get(f"sma_{condition['long_period']}")
                 if sma_short is not None and sma_long is not None:
                     return sma_short > sma_long
             elif condition_type == "rsi_oversold":
-                rsi = data.get(f'rsi_{condition.get("period", 14)}')
+                rsi = data.get(f"rsi_{condition.get('period', 14)}")
                 if rsi is not None:
                     return rsi < condition.get("threshold", 30)
             elif condition_type == "rsi_overbought":
-                rsi = data.get(f'rsi_{condition.get("period", 14)}')
+                rsi = data.get(f"rsi_{condition.get('period', 14)}")
                 if rsi is not None:
                     return rsi > condition.get("threshold", 70)
             elif condition_type == "volume_spike":

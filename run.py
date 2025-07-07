@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 Professional AutoTrader Pro - Main Entry Point
-Clean startup script for the automated trading system
 """
 
 import asyncio
@@ -14,8 +13,8 @@ load_dotenv()
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from src.main_automated import main
-from src.infra.logging_config import setup_logging
+from src.main_automated import main  # noqa: E402
+from src.infra.logging_config import setup_logging  # noqa: E402
 
 
 def check_environment():

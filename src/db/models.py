@@ -10,6 +10,7 @@ from sqlalchemy.sql import func
 
 class ScreenedStockBase(SQLModel):
     """Base model for screened stocks"""
+
     symbol: str = Field(index=True, max_length=10)
     screening_criteria: Dict[str, Any] = Field(sa_column=Column(JSON))
     price: float
@@ -21,20 +22,21 @@ class ScreenedStockBase(SQLModel):
 
 class ScreenedStock(ScreenedStockBase, table=True):
     """Table for storing screened stocks"""
-    
+
     __tablename__ = "screened_stocks"
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     screened_at: datetime = Field(
         sa_column=Column(DateTime, server_default=func.now(), nullable=False)
     )
-    
+
     # Relationships
     scores: List["StockScore"] = Relationship(back_populates="screened_stock")
 
 
 class StockScoreBase(SQLModel):
     """Base model for stock scores"""
+
     symbol: str = Field(index=True, max_length=10)
     score: float
     rank: int
@@ -49,22 +51,27 @@ class StockScoreBase(SQLModel):
 
 class StockScore(StockScoreBase, table=True):
     """Table for storing stock scores and rankings"""
-    
+
     __tablename__ = "stock_scores"
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
-    screened_stock_id: Optional[int] = Field(default=None, foreign_key="screened_stocks.id")
+    screened_stock_id: Optional[int] = Field(
+        default=None, foreign_key="screened_stocks.id"
+    )
     scored_at: datetime = Field(
         sa_column=Column(DateTime, server_default=func.now(), nullable=False)
     )
-    
+
     # Relationships
     screened_stock: Optional[ScreenedStock] = Relationship(back_populates="scores")
-    tracked_symbol: Optional["TrackedSymbol"] = Relationship(back_populates="stock_score")
+    tracked_symbol: Optional["TrackedSymbol"] = Relationship(
+        back_populates="stock_score"
+    )
 
 
 class TrackedSymbolBase(SQLModel):
     """Base model for tracked symbols"""
+
     symbol: str = Field(index=True, max_length=10, unique=True)
     is_active: bool = Field(default=True)
     reason_added: Optional[str] = Field(default=None, max_length=100)
@@ -72,9 +79,9 @@ class TrackedSymbolBase(SQLModel):
 
 class TrackedSymbol(TrackedSymbolBase, table=True):
     """Table for dynamically tracked symbols"""
-    
+
     __tablename__ = "tracked_symbols"
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     stock_score_id: Optional[int] = Field(default=None, foreign_key="stock_scores.id")
     added_at: datetime = Field(
@@ -83,60 +90,74 @@ class TrackedSymbol(TrackedSymbolBase, table=True):
     last_updated: datetime = Field(
         sa_column=Column(DateTime, server_default=func.now(), onupdate=func.now())
     )
-    
+
     # Relationships
     stock_score: Optional[StockScore] = Relationship(back_populates="tracked_symbol")
-    strategy_results: List["StrategyResult"] = Relationship(back_populates="tracked_symbol")
+    strategy_results: List["StrategyResult"] = Relationship(
+        back_populates="tracked_symbol"
+    )
 
 
 class StrategyResultBase(SQLModel):
     """Base model for strategy results"""
+
     symbol: str = Field(index=True, max_length=10)
     strategy_name: str = Field(max_length=50)
     signal: str = Field(max_length=10)  # 'buy', 'sell', 'hold'
     strength: float  # 0.0 to 1.0
     confidence: float  # 0.0 to 1.0
     price_at_analysis: float
-    strategy_data: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
+    strategy_data: Optional[Dict[str, Any]] = Field(
+        default=None, sa_column=Column(JSON)
+    )
 
 
 class StrategyResult(StrategyResultBase, table=True):
     """Table for storing strategy analysis results"""
-    
+
     __tablename__ = "strategy_results"
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
-    tracked_symbol_id: Optional[int] = Field(default=None, foreign_key="tracked_symbols.id")
+    tracked_symbol_id: Optional[int] = Field(
+        default=None, foreign_key="tracked_symbols.id"
+    )
     analyzed_at: datetime = Field(
         sa_column=Column(DateTime, server_default=func.now(), nullable=False)
     )
-    
+
     # Relationships
-    tracked_symbol: Optional[TrackedSymbol] = Relationship(back_populates="strategy_results")
+    tracked_symbol: Optional[TrackedSymbol] = Relationship(
+        back_populates="strategy_results"
+    )
 
 
 class SignalBase(SQLModel):
     """Base model for trading signals"""
+
     symbol: str = Field(index=True, max_length=10)
     direction: str = Field(max_length=10)  # 'buy', 'sell'
     confidence_score: float
     strength: float
     price_at_signal: float
     strategy_count: int
-    contributing_strategies: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
-    status: str = Field(default="pending", max_length=20)  # 'pending', 'executed', 'rejected', 'expired'
+    contributing_strategies: Optional[Dict[str, Any]] = Field(
+        default=None, sa_column=Column(JSON)
+    )
+    status: str = Field(
+        default="pending", max_length=20
+    )  # 'pending', 'executed', 'rejected', 'expired'
 
 
 class Signal(SignalBase, table=True):
     """Table for storing aggregated trading signals"""
-    
+
     __tablename__ = "signals"
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     generated_at: datetime = Field(
         sa_column=Column(DateTime, server_default=func.now(), nullable=False)
     )
-    
+
     # Relationships
     order: Optional["Order"] = Relationship(back_populates="signal")
     risk_filter: Optional["RiskFilterResult"] = Relationship(back_populates="signal")
@@ -144,6 +165,7 @@ class Signal(SignalBase, table=True):
 
 class RiskFilterResultBase(SQLModel):
     """Base model for risk filter results"""
+
     result: str = Field(max_length=10)  # 'approved', 'rejected'
     reason: Optional[str] = Field(default=None, max_length=200)
     risk_score: float
@@ -154,22 +176,25 @@ class RiskFilterResultBase(SQLModel):
 
 class RiskFilterResult(RiskFilterResultBase, table=True):
     """Table for storing risk management filter results"""
-    
+
     __tablename__ = "risk_filter_results"
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     signal_id: Optional[int] = Field(default=None, foreign_key="signals.id")
     filtered_at: datetime = Field(
         sa_column=Column(DateTime, server_default=func.now(), nullable=False)
     )
-    
+
     # Relationships
     signal: Optional[Signal] = Relationship(back_populates="risk_filter")
 
 
 class OrderBase(SQLModel):
     """Base model for orders"""
-    broker_order_id: Optional[str] = Field(default=None, max_length=50, index=True, unique=True)
+
+    broker_order_id: Optional[str] = Field(
+        default=None, max_length=50, index=True, unique=True
+    )
     symbol: str = Field(index=True, max_length=10)
     side: str = Field(max_length=10)  # 'buy', 'sell'
     quantity: float
@@ -185,9 +210,9 @@ class OrderBase(SQLModel):
 
 class Order(OrderBase, table=True):
     """Table for storing order information"""
-    
+
     __tablename__ = "orders"
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     signal_id: Optional[int] = Field(default=None, foreign_key="signals.id")
     created_at: datetime = Field(
@@ -196,7 +221,7 @@ class Order(OrderBase, table=True):
     submitted_at: Optional[datetime] = None
     filled_at: Optional[datetime] = None
     cancelled_at: Optional[datetime] = None
-    
+
     # Relationships
     signal: Optional[Signal] = Relationship(back_populates="order")
     position: Optional["Position"] = Relationship(back_populates="entry_order")
@@ -204,6 +229,7 @@ class Order(OrderBase, table=True):
 
 class PositionBase(SQLModel):
     """Base model for positions"""
+
     symbol: str = Field(index=True, max_length=10)
     quantity: float
     side: str = Field(max_length=10)  # 'long', 'short'
@@ -218,9 +244,9 @@ class PositionBase(SQLModel):
 
 class Position(PositionBase, table=True):
     """Table for storing position information"""
-    
+
     __tablename__ = "positions"
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     entry_order_id: Optional[int] = Field(default=None, foreign_key="orders.id")
     exit_order_id: Optional[int] = Field(default=None, foreign_key="orders.id")
@@ -228,11 +254,11 @@ class Position(PositionBase, table=True):
         sa_column=Column(DateTime, server_default=func.now(), nullable=False)
     )
     closed_at: Optional[datetime] = None
-    
+
     # Relationships
     entry_order: Optional[Order] = Relationship(
         back_populates="position",
-        sa_relationship_kwargs={"foreign_keys": "[Position.entry_order_id]"}
+        sa_relationship_kwargs={"foreign_keys": "[Position.entry_order_id]"},
     )
     exit_order: Optional[Order] = Relationship(
         sa_relationship_kwargs={"foreign_keys": "[Position.exit_order_id]"}
@@ -242,6 +268,7 @@ class Position(PositionBase, table=True):
 
 class TradeLogBase(SQLModel):
     """Base model for trade logs"""
+
     symbol: str = Field(index=True, max_length=10)
     signal_generated_at: datetime
     order_placed_at: datetime
@@ -257,23 +284,26 @@ class TradeLogBase(SQLModel):
     commission_paid: Optional[float] = None
     strategy_name: Optional[str] = Field(default=None, max_length=50)
     signal_strength: Optional[float] = None
-    market_conditions: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
+    market_conditions: Optional[Dict[str, Any]] = Field(
+        default=None, sa_column=Column(JSON)
+    )
 
 
 class TradeLog(TradeLogBase, table=True):
     """Table for complete trade audit logging"""
-    
+
     __tablename__ = "trade_logs"
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     position_id: Optional[int] = Field(default=None, foreign_key="positions.id")
-    
+
     # Relationships
     position: Optional[Position] = Relationship(back_populates="trade_log")
 
 
 class SystemMetricsBase(SQLModel):
     """Base model for system metrics"""
+
     total_equity: Optional[float] = None
     available_cash: Optional[float] = None
     total_positions: Optional[int] = None
@@ -291,9 +321,9 @@ class SystemMetricsBase(SQLModel):
 
 class SystemMetrics(SystemMetricsBase, table=True):
     """Table for storing system performance metrics"""
-    
+
     __tablename__ = "system_metrics"
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     recorded_at: datetime = Field(
         sa_column=Column(DateTime, server_default=func.now(), nullable=False)
@@ -302,6 +332,7 @@ class SystemMetrics(SystemMetricsBase, table=True):
 
 class ConfigurationHistoryBase(SQLModel):
     """Base model for configuration history"""
+
     changed_by: str = Field(default="system", max_length=50)
     config_section: str = Field(max_length=50)
     old_value: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
@@ -311,9 +342,9 @@ class ConfigurationHistoryBase(SQLModel):
 
 class ConfigurationHistory(ConfigurationHistoryBase, table=True):
     """Table for tracking configuration changes"""
-    
+
     __tablename__ = "configuration_history"
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     changed_at: datetime = Field(
         sa_column=Column(DateTime, server_default=func.now(), nullable=False)
@@ -323,6 +354,7 @@ class ConfigurationHistory(ConfigurationHistoryBase, table=True):
 # Stock data models (for repository use)
 class StockDataBase(SQLModel):
     """Base model for stock data"""
+
     symbol: str = Field(index=True, max_length=10)
     date: str  # Using string for date to match repository pattern
     open: Optional[float] = None
@@ -336,9 +368,9 @@ class StockDataBase(SQLModel):
 
 class StockData(StockDataBase, table=True):
     """Table for storing stock market data"""
-    
+
     __tablename__ = "stock_data"
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     last_updated: datetime = Field(
         sa_column=Column(DateTime, server_default=func.now(), nullable=False)
@@ -347,6 +379,7 @@ class StockData(StockDataBase, table=True):
 
 class SymbolBase(SQLModel):
     """Base model for symbols"""
+
     symbol: str = Field(index=True, max_length=10, unique=True)
     name: Optional[str] = None
     exchange: Optional[str] = None
@@ -357,14 +390,16 @@ class SymbolBase(SQLModel):
     easy_to_borrow: bool = Field(default=False)
     fractionable: bool = Field(default=False)
     active: bool = Field(default=True)
-    extra_metadata: Optional[str] = Field(default=None, alias="metadata")  # JSON string for additional metadata
+    extra_metadata: Optional[str] = Field(
+        default=None, alias="metadata"
+    )  # JSON string for additional metadata
 
 
 class Symbol(SymbolBase, table=True):
     """Table for storing symbol metadata"""
-    
+
     __tablename__ = "symbols"
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     last_updated: datetime = Field(
         sa_column=Column(DateTime, server_default=func.now(), nullable=False)
@@ -375,6 +410,7 @@ class Symbol(SymbolBase, table=True):
 class ScreenedStockCreate(ScreenedStockBase):
     pass
 
+
 class ScreenedStockUpdate(SQLModel):
     symbol: Optional[str] = None
     screening_criteria: Optional[Dict[str, Any]] = None
@@ -384,8 +420,10 @@ class ScreenedStockUpdate(SQLModel):
     market_cap: Optional[float] = None
     sector: Optional[str] = None
 
+
 class StockScoreCreate(StockScoreBase):
     pass
+
 
 class StockScoreUpdate(SQLModel):
     score: Optional[float] = None
@@ -397,5 +435,6 @@ class StockScoreUpdate(SQLModel):
     technical_score: Optional[float] = None
     sentiment_score: Optional[float] = None
     fundamentals_score: Optional[float] = None
+
 
 # Add other Create/Update models as needed for all tables

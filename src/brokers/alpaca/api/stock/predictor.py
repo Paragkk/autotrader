@@ -6,11 +6,12 @@ import numpy as np
 
 # Handle numpy compatibility - suppress warnings for prophet
 import warnings
+
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 try:
     # Try to set numpy compatibility for older Prophet versions
-    if not hasattr(np, 'float_'):
+    if not hasattr(np, "float_"):
         np.float_ = np.float64
 except AttributeError:
     pass
@@ -19,12 +20,14 @@ except AttributeError:
 Prophet = None
 PROPHET_AVAILABLE = None
 
+
 def _get_prophet():
     """Lazy import of Prophet to avoid hanging at module import time"""
     global Prophet, PROPHET_AVAILABLE
     if PROPHET_AVAILABLE is None:
         try:
             from prophet import Prophet as ProphetClass
+
             Prophet = ProphetClass
             PROPHET_AVAILABLE = True
         except ImportError as e:
@@ -34,6 +37,7 @@ def _get_prophet():
             logging.warning(f"Prophet import failed: {e}")
             PROPHET_AVAILABLE = False
     return Prophet if PROPHET_AVAILABLE else None
+
 
 from .history import History  # noqa: E402
 from .screener import Screener  # noqa: E402
@@ -95,7 +99,7 @@ class Predictor:
         if ProphetClass is None:
             logging.warning("Prophet not available, cannot train model")
             return None
-            
+
         model = ProphetClass(
             changepoint_prior_scale=0.05,
             holidays_prior_scale=15,
@@ -158,11 +162,13 @@ class Predictor:
         try:
             symbol_data = self.get_stock_data(ticker)
             symbol_model = self.train_prophet_model(symbol_data)
-            
+
             if symbol_model is None:
-                logging.warning(f"Cannot create prediction model for {ticker} - Prophet not available")
+                logging.warning(
+                    f"Cannot create prediction model for {ticker} - Prophet not available"
+                )
                 return False
-                
+
             symbol_forecast = self.generate_forecast(
                 symbol_model, future_periods=future_periods
             )

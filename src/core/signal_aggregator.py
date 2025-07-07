@@ -376,13 +376,15 @@ class SignalAggregator:
             logger.error(f"Error getting signal statistics: {e}")
             return {}
 
-    async def aggregate_strategy_results(self, strategy_results: List[Any]) -> Dict[str, Any]:
+    async def aggregate_strategy_results(
+        self, strategy_results: List[Any]
+    ) -> Dict[str, Any]:
         """
         Aggregate strategy results directly (not from database)
-        
+
         Args:
             strategy_results: List of StrategyResult objects
-            
+
         Returns:
             Dict with aggregated signal data
         """
@@ -393,31 +395,33 @@ class SignalAggregator:
                     "confidence": 0.0,
                     "strength": 0.0,
                     "price": 0.0,
-                    "strategies": []
+                    "strategies": [],
                 }
-            
+
             # Convert strategy results to signal format
             signals = []
             for result in strategy_results:
-                signals.append({
-                    "signal_type": result.signal,
-                    "strength": result.strength,
-                    "confidence": result.confidence,
-                    "strategy_name": result.strategy_name,
-                    "price": result.price_at_analysis
-                })
-            
+                signals.append(
+                    {
+                        "signal_type": result.signal,
+                        "strength": result.strength,
+                        "confidence": result.confidence,
+                        "strategy_name": result.strategy_name,
+                        "price": result.price_at_analysis,
+                    }
+                )
+
             # Aggregate using weighted average method
             aggregated = self._weighted_average_aggregation(signals)
-            
+
             return {
                 "direction": aggregated["signal_type"] if aggregated else "hold",
                 "confidence": aggregated["confidence"] if aggregated else 0.0,
                 "strength": aggregated["strength"] if aggregated else 0.0,
                 "price": aggregated["price"] if aggregated else 0.0,
-                "strategies": [s["strategy_name"] for s in signals]
+                "strategies": [s["strategy_name"] for s in signals],
             }
-            
+
         except Exception as e:
             logger.error(f"Error aggregating strategy results: {e}")
             return {
@@ -425,5 +429,5 @@ class SignalAggregator:
                 "confidence": 0.0,
                 "strength": 0.0,
                 "price": 0.0,
-                "strategies": []
+                "strategies": [],
             }

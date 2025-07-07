@@ -140,7 +140,7 @@ class RiskManager:
         position_value = min(adjusted_position_value, max_position_value)
 
         logger.info(
-            f"📊 Position size calculated: ${position_value:,.2f} ({position_value/portfolio_value*100:.1f}% of portfolio)"
+            f"📊 Position size calculated: ${position_value:,.2f} ({position_value / portfolio_value * 100:.1f}% of portfolio)"
         )
         return position_value
 

@@ -183,29 +183,39 @@ class AutomatedTradingSystem:
         self.symbol_repo = SymbolRepository(db_path)
         self.stock_data_repo = StockDataRepository(db_path)
         self.signal_repo = SignalRepository(db_path)
-        
+
         # Initialize data fetcher
         self.data_fetcher = DataFetcher(
             stock_data_repo=self.stock_data_repo,
             symbol_repo=self.symbol_repo,
-            broker_adapter=self.broker_adapter
+            broker_adapter=self.broker_adapter,
         )
 
         # Initialize screener with required dependencies
         self.stock_screener = EnhancedStockScreener(
             data_fetcher=self.data_fetcher,
             symbol_repo=self.symbol_repo,
-            stock_data_repo=self.stock_data_repo
+            stock_data_repo=self.stock_data_repo,
         )
         self.strategy_engine = StrategyEngine(self.broker_adapter)
         self.signal_aggregator = SignalAggregator(self.signal_repo)
-        
+
         # Initialize risk manager with proper parameters
         from core.risk_management import RiskParameters
+
         risk_params = RiskParameters(
-            max_position_size_percent=config.config["risk"].get("max_exposure_per_trade", 0.05) * 100,
-            max_total_exposure_percent=config.config["risk"].get("portfolio_risk_limit", 0.15) * 100,
-            max_sector_exposure_percent=config.config["risk"].get("max_exposure_per_sector", 0.20) * 100,
+            max_position_size_percent=config.config["risk"].get(
+                "max_exposure_per_trade", 0.05
+            )
+            * 100,
+            max_total_exposure_percent=config.config["risk"].get(
+                "portfolio_risk_limit", 0.15
+            )
+            * 100,
+            max_sector_exposure_percent=config.config["risk"].get(
+                "max_exposure_per_sector", 0.20
+            )
+            * 100,
         )
         self.risk_manager = RiskManager(risk_params)
         self.stock_scorer = StockScorer(config.config["scoring"])
@@ -564,7 +574,9 @@ class AutomatedTradingSystem:
 
             # Generate signals
             for symbol, results in symbol_results.items():
-                signal_data = await self.signal_aggregator.aggregate_strategy_results(results)
+                signal_data = await self.signal_aggregator.aggregate_strategy_results(
+                    results
+                )
 
                 if (
                     signal_data["confidence"]

@@ -308,7 +308,7 @@ def create_broker_config_template(broker_name: str) -> Path:
     config_file = broker_dir / "config.yaml"
 
     template_content = f"""# {broker_name.title()} Broker Configuration
-# {'=' * (len(broker_name) + 24)}
+# {"=" * (len(broker_name) + 24)}
 
 # {broker_name.title()} API Configuration
 # Add your broker-specific API settings here
