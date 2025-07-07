@@ -1,4 +1,7 @@
-from py_alpaca_api.models.account_model import AccountModel, account_class_from_dict
+from src.brokers.alpaca.api.models.account_model import (
+    AccountModel,
+    account_class_from_dict,
+)
 import pendulum
 
 

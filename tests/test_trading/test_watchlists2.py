@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-from py_alpaca_api import PyAlpacaAPI
+from src.brokers.alpaca.api import PyAlpacaAPI
 
 # The following keys are for testing purposes only
 # You should never hardcode your keys in your code

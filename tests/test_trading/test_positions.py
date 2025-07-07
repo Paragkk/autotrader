@@ -1,6 +1,6 @@
 # Retrieves all positions successfully with correct sorting by profit_pct in descending order
 import json
-from py_alpaca_api.trading.positions import Positions
+from src.brokers.alpaca.api.trading.positions import Positions
 
 
 # Retrieves position successfully when valid symbol is provided
@@ -28,7 +28,7 @@ def test_retrieves_position_successfully_with_valid_symbol(mocker):
         }
     ]
     mocker.patch(
-        "py_alpaca_api.http.requests.Requests.request",
+        "src.brokers.alpaca.api.http.requests.Requests.request",
         return_value=mocker.Mock(text=json.dumps(mock_response)),
     )
     mock_account = mocker.Mock()
@@ -66,7 +66,7 @@ def test_retrieves_all_positions_successfully_with_default_sorting(mocker):
         }
     ]
     mocker.patch(
-        "py_alpaca_api.http.requests.Requests.request",
+        "src.brokers.alpaca.api.http.requests.Requests.request",
         return_value=mocker.Mock(text=json.dumps(mock_response)),
     )
     mock_account = mocker.Mock()
@@ -122,7 +122,7 @@ def test_retrieves_all_positions_successfully_with_correct_sorting(mocker):
         }
     ]
     mocker.patch(
-        "py_alpaca_api.http.requests.Requests.request",
+        "src.brokers.alpaca.api.http.requests.Requests.request",
         return_value=mocker.Mock(text=json.dumps(mock_response)),
     )
     mock_account = mocker.Mock()
@@ -164,7 +164,7 @@ def test_retrieves_all_positions_successfully_with_correct_sorting_ascending_fix
         }
     ]
     mocker.patch(
-        "py_alpaca_api.http.requests.Requests.request",
+        "src.brokers.alpaca.api.http.requests.Requests.request",
         return_value=mocker.Mock(text=json.dumps(mock_response)),
     )
     mock_account = mocker.Mock()

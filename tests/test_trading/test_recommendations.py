@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 import pytest
-from py_alpaca_api import PyAlpacaAPI
+from src.brokers.alpaca.api import PyAlpacaAPI
 
 api_key = os.environ.get("ALPACA_API_KEY")
 api_secret = os.environ.get("ALPACA_SECRET_KEY")

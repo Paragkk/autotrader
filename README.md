@@ -1,330 +1,419 @@
+# AutoTrader Pro - Professional Automated Trading System
+
 <p align="center">
-  <img src="https://raw.githubusercontent.com/PKief/vscode-material-icon-theme/ec559a9f6bfd399b82bb44393651661b08aaf7ba/icons/folder-markdown-open.svg" width="100" alt="project-logo">
-</p>
-<p align="center">
-    <h1 align="center">PY-ALPACA-API</h1>
-</p>
-<p align="center">
-    <em>Streamline Trading with Seamless Alpaca Integration</em>
-</p>
-<p align="center">
-    <img alt="GitHub Actions Workflow Status" src="https://img.shields.io/github/actions/workflow/status/TexasCoding/py-alpaca-api/.github%2Fworkflows%2Ftest-package.yaml">
-	<img src="https://img.shields.io/github/license/TexasCoding/py-alpaca-api?style=flat-square&logo=opensourceinitiative&logoColor=white&color=0080ff" alt="license">
-	<img src="https://img.shields.io/github/last-commit/TexasCoding/py-alpaca-api?style=flat-square&logo=git&logoColor=white&color=0080ff" alt="last-commit">
-	<img src="https://img.shields.io/github/languages/top/TexasCoding/py-alpaca-api?style=flat-square&color=0080ff" alt="repo-top-language">
-	<img src="https://img.shields.io/github/languages/count/TexasCoding/py-alpaca-api?style=flat-square&color=0080ff" alt="repo-language-count">
-<p>
-<p align="center">
-		<em>Developed with the software and tools below.</em>
-</p>
-<p align="center">
-	<img src="https://img.shields.io/badge/tqdm-FFC107.svg?style=flat-square&logo=tqdm&logoColor=black" alt="tqdm">
-	<img src="https://img.shields.io/badge/precommit-FAB040.svg?style=flat-square&logo=pre-commit&logoColor=black" alt="precommit">
-	<img src="https://img.shields.io/badge/Poetry-60A5FA.svg?style=flat-square&logo=Poetry&logoColor=white" alt="Poetry">
-	<img src="https://img.shields.io/badge/Plotly-3F4F75.svg?style=flat-square&logo=Plotly&logoColor=white" alt="Plotly">
-	<img src="https://img.shields.io/badge/Python-3776AB.svg?style=flat-square&logo=Python&logoColor=white" alt="Python">
-	<img src="https://img.shields.io/badge/GitHub%20Actions-2088FF.svg?style=flat-square&logo=GitHub-Actions&logoColor=white" alt="GitHub%20Actions">
-	<img src="https://img.shields.io/badge/pandas-150458.svg?style=flat-square&logo=pandas&logoColor=white" alt="pandas">
+    <em>Production-ready automated trading system with advanced risk management and ML-driven strategies</em>
 </p>
 
-<br><!-- TABLE OF CONTENTS -->
-<details>
-  <summary>Table of Contents</summary><br>
+<p align="center">
+    <img src="https://img.shields.io/badge/Python-3.11+-blue.svg" alt="Python Version">
+    <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License">
+    <img src="https://img.shields.io/badge/Version-1.0.0-orange.svg" alt="Version">
+    <img src="https://img.shields.io/badge/Docker-Ready-brightgreen.svg" alt="Docker">
+</p>
 
-- [ Overview](#-overview)
-- [ Features](#-features)
-- [ Repository Structure](#-repository-structure)
-- [ Modules](#-modules)
-- [ Getting Started](#-getting-started)
-  - [ Installation](#-installation)
-  - [ Usage](#-usage)
-  - [ Tests](#-tests)
-- [ Project Roadmap](#-project-roadmap)
-- [ Contributing](#-contributing)
-- [ License](#-license)
-- [ Acknowledgments](#-acknowledgments)
-</details>
-<hr>
+## 🚀 Overview
 
-##  Overview
+AutoTrader Pro is a comprehensive, production-ready automated trading system designed for professional deployment. It features a complete 10-step automated trading workflow with advanced risk management, multi-strategy execution, and real-time monitoring capabilities.
 
-### V2.0.0 is not compatible with previous versions.
-Use the [V1.0.3](https://github.com/TexasCoding/py-alpaca-api/tree/master) branch for the previous version.
-
-The py-alpaca-api project provides a comprehensive Python interface for executing financial trading operations via the Alpaca API. It enables the management of watchlists, account positions, market data, and stock portfolios. It includes functionalities for order processing, stock screening, and predictive analytics leveraging historical data, enhancing market analysis and trading efficiencies. By abstracting complex API interactions into user-friendly Python modules, the project supports streamlined, data-driven trading decisions, making it a valuable tool for both developers and traders aiming for effective financial market engagement.
-
-This project is mainly for fun and my personal use. Hopefully others find it helpful as well. Alpaca has a great Python SDK that provides a robust API interface, just more complex than I need for my uses. Checkout it out here [Alpaca-py](https://alpaca.markets/sdks/python/).
+**Key Highlights:**
+- **Fully Automated**: End-to-end trading automation from screening to execution
+- **Risk Management**: Advanced position sizing, stop-loss, and portfolio risk controls
+- **Multi-Strategy**: Pluggable strategy architecture supporting multiple trading approaches
+- **Production Ready**: Docker containerized with comprehensive logging and monitoring
+- **ML-Driven**: Machine learning for stock scoring and signal generation
 
 ---
 
-##  Features
+## 🎯 Features
 
-|    |   Feature         | Description |
-|----|-------------------|---------------------------------------------------------------|
-| ⚙️  | **Architecture**  | The project is organized into modular packages, primarily dealing with stock trading, interactions with APIs (mainly Alpaca), and data handling. The trading modules handle various operations like watchlists, positions, accounts, news, and market interactions. |
-| 🔩 | **Code Quality**  | The codebase appears to follow a structured and modular approach with the usage of dataclasses for models ensuring clarity. The presence of utility functions indicates clean separation of concerns for data transformation tasks. |
-| 📄 | **Documentation** | Documentation includes code comments and descriptive docstrings for functions and classes. The `pyproject.toml` and `requirements.txt` files provide clear dependency management information. However, project-wide documentation and usage examples may need enhancement. |
-| 🔌 | **Integrations**  | The code integrates with prominent financial data services like Yahoo Finance and Benzinga. It also utilizes Prophet for stock prediction and leverages the Alpaca trading API for executing trading operations. Matplotlib and Plotly are employed for data visualization. |
-| 🧩 | **Modularity**    | The project is highly modular with distinct packages and sub-packages handling specific responsibilities such as historical data retrieval, predictive analysis, trading functions, and account management. Reusability is evident through the use of utility modules. |
-| 🧪 | **Testing**       | Utilizes continuous integration via GitHub Actions, as seen in the `.github/workflows/test-package.yaml` workflow file. Testing practices appear to include automated tests for multiple environments which help catch issues early in the development process. |
-| ⚡️  | **Performance**   | Performance optimization measures include efficient HTTP request handling with retry mechanisms. The Prophet model ensures efficient stock prediction by leveraging historical data with advanced forecasting techniques. Explicit attention to modular detailed design suggests minimalistic performance overheads. |
-| 🛡️ | **Security**      | Security measures such as data validation within utility functions and thorough modeling for user and trading data are in place. However, explicit security practices regarding API key management or data encryption could be better detailed. |
-| 📦 | **Dependencies**  | Key external libraries include `pandas` for data manipulation, `requests` for HTTP communication, `matplotlib` and `plotly` for visualization, `beautifulsoup4` for web scraping, `numpy` for numerical operations, and `prophet` for predictive modeling. |
-| 🚀 | **Scalability**   | The architecture supports scalable operations given its modularity and use of robust libraries like `pandas` and `numpy`. The reliance on scalable cloud-hosted APIs such as Alpaca further enhances the capability to handle increased load. |
+### Automated Trading Workflow
+- **Scheduled Stock Screening**: Hourly screening with configurable criteria
+- **Multi-Factor Scoring**: Advanced scoring system using momentum, volume, volatility, and technical indicators
+- **Strategy Engine**: Multiple parallel trading strategies with weighted signal aggregation
+- **Risk Management**: Portfolio limits, position sizing, and stop-loss controls
+- **Order Execution**: Reliable order execution with retry logic and timeout handling
+- **Position Monitoring**: Real-time monitoring with automated exit conditions
+- **Audit Trail**: Complete logging and persistence of all trading activities
+
+### Technical Features
+- **Docker Containerized**: Production-ready deployment with Docker Compose
+- **Database Persistence**: SQLite with comprehensive audit logging
+- **Web Dashboard**: Real-time monitoring and control interface
+- **RESTful API**: Complete API for external integrations
+- **Configuration Management**: YAML-based configuration with environment variables
+- **Structured Logging**: Comprehensive logging with rotation and filtering
+- **Health Monitoring**: System health checks and performance metrics
+
+### Risk Management
+- **Position Limits**: Maximum number of concurrent positions
+- **Daily Loss Limits**: Automatic trading suspension on loss thresholds
+- **Portfolio Diversification**: Automatic position sizing based on portfolio percentage
+- **Stop-Loss Protection**: Configurable stop-loss percentages
+- **Take-Profit Targets**: Automated profit-taking at target levels
 
 ---
 
-##  Repository Structure
+## 🏗️ Architecture
 
-```sh
-└── py-alpaca-api/
-    ├── src
-    │   └── py_alpaca_api
-    │       ├── __init__.py
-    │       ├── http
-    │       │   └── requests.py
-    │       ├── models
-    │       │   ├── account_activity_model.py
-    │       │   ├── account_model.py
-    │       │   ├── asset_model.py
-    │       │   ├── clock_model.py
-    │       │   ├── model_utils.py
-    │       │   ├── order_model.py
-    │       │   ├── position_model.py
-    │       │   └── watchlist_model.py
-    │       ├── stock
-    │       │   ├── __init__.py
-    │       │   ├── assets.py
-    │       │   ├── history.py
-    │       │   ├── predictor.py
-    │       │   └── screener.py
-    │       └── trading
-    │           ├── __init__.py
-    │           ├── account.py
-    │           ├── market.py
-    │           ├── news.py
-    │           ├── orders.py
-    │           ├── positions.py
-    │           ├── recommendations.py
-    │           └── watchlists.py
-    └── tests
-        ├── __init__.py
-        ├── test_http
-        │   └── test_requests.py
-        ├── test_models
-        │   ├── test_account_activity_model.py
-        │   ├── test_account_model.py
-        │   ├── test_asset_model.py
-        │   ├── test_clock_model.py
-        │   ├── test_order_model.py
-        │   ├── test_position_model.py
-        │   └── test_watchlist_model.py
-        ├── test_stock
-        │   ├── test_assets.py
-        │   ├── test_history.py
-        │   ├── test_history2.py
-        │   ├── test_predictor.py
-        │   └── test_screener.py
-        └── test_trading
-            ├── test_account.py
-            ├── test_account2.py
-            ├── test_news.py
-            ├── test_orders.py
-            ├── test_positions.py
-            ├── test_recommendations.py
-            ├── test_watchlists.py
-            └── test_watchlists2.py
+AutoTrader Pro follows a modular, production-ready architecture:
+
+```
+src/
+├── main_automated.py          # Main trading orchestrator
+├── core/                      # Core trading components
+│   ├── stock_screener.py      # Automated stock screening
+│   ├── stock_scorer.py        # Multi-factor scoring system
+│   ├── strategy_engine.py     # Trading strategy engine
+│   ├── signal_aggregator.py   # Signal aggregation logic
+│   ├── risk_manager.py        # Risk management system
+│   ├── order_executor.py      # Order execution engine
+│   └── position_monitor.py    # Position monitoring
+├── brokers/                   # Broker integrations
+│   └── alpaca/               # Alpaca broker adapter
+├── db/                       # Database layer
+│   ├── models.py             # Data models
+│   └── repository.py         # Data access layer
+├── api/                      # REST API
+│   └── main.py              # FastAPI application
+└── infra/                    # Infrastructure
+    ├── config.py             # Configuration management
+    ├── logging_config.py     # Logging setup
+    └── path_utils.py         # Path utilities
+```
+
+### Key Components
+
+- **Trading Orchestrator**: Coordinates the entire trading workflow
+- **Strategy Engine**: Pluggable architecture for multiple trading strategies
+- **Risk Manager**: Advanced risk controls and position sizing
+- **Signal Aggregator**: Combines signals from multiple strategies with confidence weighting
+- **Order Executor**: Handles order placement with retry logic and error handling
+- **Position Monitor**: Tracks open positions and manages exit conditions
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- **Python 3.11+**
+- **Docker & Docker Compose** (recommended)
+- **Alpaca trading account** (paper or live)
+
+### 1. Environment Setup
+
+Create a `.env` file in the project root:
+
+```bash
+# Required: Alpaca API Credentials
+ALPACA_API_KEY=your_api_key_here
+ALPACA_SECRET_KEY=your_secret_key_here
+
+# Optional: Override default settings
+DATABASE_URL=sqlite:///data/trading.db
+LOG_LEVEL=INFO
+```
+
+### 2. Docker Deployment (Recommended)
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd autotrader
+
+# Build and start all services
+docker-compose up -d
+
+# View real-time logs
+docker-compose logs -f autotrader
+
+# Stop services
+docker-compose down
+```
+
+This starts:
+- **AutoTrader Pro** (main trading system)
+- **Dashboard** (automatically started at http://localhost:8501)
+- **Redis** (for caching)
+
+### 3. Local Development
+
+```bash
+# Install dependencies with uv
+uv pip install -e .
+
+# For dashboard (optional - installs Streamlit)
+uv pip install -e .[dashboard]
+
+# For full development setup
+uv pip install -e .[dev]
+
+# Run the system (dashboard starts automatically)
+python run.py
+```
+
+### 4. Configuration
+
+Edit `config.yaml` to customize trading parameters:
+
+```yaml
+trading:
+  max_positions: 15              # Maximum concurrent positions
+  max_daily_loss: 2000.0        # Daily loss limit ($)
+  position_size_percent: 0.03   # Position size (3% of portfolio)
+  stop_loss_percent: 0.03       # Stop loss (3%)
+  take_profit_percent: 0.08     # Take profit (8%)
+
+screening:
+  enabled: true
+  schedule: "0 */1 * * *"        # Every hour
+  max_symbols: 50
+  criteria:
+    min_price: 5.0
+    max_price: 500.0
+    min_volume: 250000
+```
+
+### 5. Broker Configuration
+
+AutoTrader Pro supports modular broker configuration. The system uses a layered configuration approach:
+
+1. **Base Configuration**: Common settings in `src/brokers/base/config/base_config.yaml`
+2. **Broker-Specific Configuration**: Alpaca settings in `src/brokers/alpaca/config/alpaca_config.yaml`
+3. **Main Configuration**: Override settings in `config.yaml`
+
+To add a new broker, create the directory structure:
+```
+src/brokers/new_broker/
+├── config/new_broker_config.yaml
+├── __init__.py
+└── adapter.py
 ```
 
 ---
 
-##  Modules
+## 📊 Monitoring & Control
 
-<details closed><summary>.</summary>
+### Real-time Dashboard
 
-| File                                                                                          | Summary                                                                                                                                                                                                                                                                                                                                                                                      |
-| ---                                                                                           | ---                                                                                                                                                                                                                                                                                                                                                                                          |
-| [requirements.txt](https://github.com/TexasCoding/py-alpaca-api/blob/master/requirements.txt) | Specify all required dependencies for the `py-alpaca-api` project, ensuring compatibility with Python versions 3.12 to 4.0. Critical dependencies facilitate functionalities for data visualization, time series analysis, HTTP requests, date manipulation, and prophet, among others, reinforcing seamless integrations and optimal performance across various platforms and environments. |
-| [pyproject.toml](https://github.com/TexasCoding/py-alpaca-api/blob/master/pyproject.toml)     | Defines metadata and dependency management for the py-alpaca-api project using Poetry, ensuring compatibility and functionality with specified Python and library versions, alongside configuring development, testing, and documentation dependencies for streamlined project maintenance and collaboration. Serves as the foundational setup for the project's environment.                |
+AutoTrader Pro includes a comprehensive **Streamlit dashboard** that automatically launches with the system:
 
-</details>
+**Access:** http://localhost:8501
 
-<details closed><summary>src.py_alpaca_api.trading</summary>
+**Features:**
+- **🏠 Overview**: System status, tracked symbols, portfolio metrics
+- **📊 Strategies**: Strategy performance, win rates, signal distribution
+- **🎯 Signals**: Live trading signals with confidence scores
+- **💼 Positions**: Active positions with real-time P&L
+- **📈 Performance**: Portfolio charts and risk analytics
 
-| File                                                                                                                        | Summary                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| ---                                                                                                                         | ---                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| [watchlists.py](https://github.com/TexasCoding/py-alpaca-api/blob/master/src/py_alpaca_api/trading/watchlists.py)           | Facilitates complete management of watchlists in the trading module, handling operations such as retrieval, creation, updating, deletion, and manipulation of assets, seamlessly integrating with HTTP requests and watchlist model handling for comprehensive API interaction. Part of a structured trading architecture within the py-alpaca-api repository.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| [recommendations.py](https://github.com/TexasCoding/py-alpaca-api/blob/master/src/py_alpaca_api/trading/recommendations.py) | Provide stock recommendations and generate sentiment analysis for given symbols, integrating with external APIs and popular stock data sources like Yahoo Finance. Enhance trading strategy modules in the parent repositorys architecture, supporting informed investment decisions for users.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| [positions.py](https://github.com/TexasCoding/py-alpaca-api/blob/master/src/py_alpaca_api/trading/positions.py)             | Manage user positions, providing retrieval and organization of Alpaca trading account positions. Enhance data with comprehensive market details, sorting capabilities, and support for tracking cash positions alongside asset positions, ensuring accurate portfolio analysis and streamlined access to current trading statuses.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| [orders.py](https://github.com/TexasCoding/py-alpaca-api/blob/master/src/py_alpaca_api/trading/orders.py)                   | Py-alpaca-api/src/py_alpaca_api/http/requests.py`The `requests.py` file is a critical component within the `py_alpaca_api` package of the repository. This file primarily handles the HTTP requests specific to the Alpaca API, facilitating communication between the user's application and Alpaca's endpoint services. It encapsulates the necessary methods to perform various operations such as querying market data, submitting orders, and retrieving account information. By abstracting and managing these interactions, `requests.py` serves as a foundational module that enables other parts of the repository, such as models and higher-level structures, to function seamlessly without directly managing the complexities of HTTP transactions. Overall, it plays a pivotal role in ensuring that the API communicates effectively and reliably with Alpacas systems, serving as an backbone for the integration functionalities of the entire `py-alpaca-api` repository. |
-| [news.py](https://github.com/TexasCoding/py-alpaca-api/blob/master/src/py_alpaca_api/trading/news.py)                       | Retrieves and processes financial news articles related to specific market symbols from sources like Yahoo Finance and Benzinga, integrating them into the trading module to provide real-time, relevant news updates. Enables article scraping, HTML stripping, content truncation, and organized presentation with options to filter by date and content presence.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| [market.py](https://github.com/TexasCoding/py-alpaca-api/blob/master/src/py_alpaca_api/trading/market.py)                   | Facilitates interaction with the market data endpoints. Provides methods to retrieve the current market clock and market calendar within a specified date range, returning structured data. This is essential for ensuring the core trading functionality operates with accurate market timing, enhancing decision-making and automation capabilities.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| [account.py](https://github.com/TexasCoding/py-alpaca-api/blob/master/src/py_alpaca_api/trading/account.py)                 | Manage user account information, activities, and portfolio history within the Alpaca API trading module. Offer seamless data retrieval, including user account details, activity logs filtered by type and date, and detailed portfolio history with configurable periods, timeframes, and intraday reporting, presented in a structured and analyzable format.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+**Emergency Controls:**
+- **🛑 Emergency Stop**: Immediately halt all trading
+- **🔄 Close Positions**: Close individual or all positions
+- **⚡ Strategy Toggle**: Enable/disable specific strategies
+- **📊 Real-time Monitoring**: Live updates every 10 seconds
+- Configuration management interface
 
-</details>
+### API Endpoints
 
-<details closed><summary>src.py_alpaca_api.stock</summary>
+The system provides a comprehensive REST API:
 
-| File                                                                                                          | Summary                                                                                                                                                                                                                                                                                                                                |
-| ---                                                                                                           | ---                                                                                                                                                                                                                                                                                                                                    |
-| [screener.py](https://github.com/TexasCoding/py-alpaca-api/blob/master/src/py_alpaca_api/stock/screener.py)   | Streamlines the identification and filtering of stock market gainers and losers based on specific criteria such as price, change, volume, and trade count. Leverages Alpaca Data API to retrieve and evaluate stocks, efficiently categorizing them for further decision-making processes in trading applications.                     |
-| [predictor.py](https://github.com/TexasCoding/py-alpaca-api/blob/master/src/py_alpaca_api/stock/predictor.py) | Predicts future stock gainers by leveraging historical stock data and the Prophet model for forecasting. Collects data on previous day losers, trains a model, and generates a forecast to identify stocks expected to yield high future returns, aiding in strategic stock trading decisions.                                         |
-| [history.py](https://github.com/TexasCoding/py-alpaca-api/blob/master/src/py_alpaca_api/stock/history.py)     | Retrieve and preprocess historical stock data, ensuring the asset is a valid stock before fetching. Offer end-users rich, structured financial data in customizable parameters to aid in stock analysis within the overarching Alpaca API-based trading platform architecture.                                                         |
-| [assets.py](https://github.com/TexasCoding/py-alpaca-api/blob/master/src/py_alpaca_api/stock/assets.py)       | Provide functionality for retrieving asset information from the Alpaca API. Supports fetching individual asset details and obtaining a filtered DataFrame of multiple assets, focusing on active, fractionable, and tradable US equities while excluding specified exchanges. Integrates with asset models to ensure data consistency. |
+- `GET /health` - System health check
+- `GET /portfolio` - Portfolio overview
+- `GET /positions` - Current positions
+- `GET /signals` - Recent trading signals
+- `POST /orders` - Manual order placement
+- `POST /controls/stop` - Emergency stop
 
-</details>
+### Logging
 
-<details closed><summary>src.py_alpaca_api.models</summary>
+Comprehensive logging with multiple levels:
+- **INFO**: General system operation
+- **WARNING**: Non-critical issues
+- **ERROR**: Critical errors requiring attention
+- **DEBUG**: Detailed debugging information
 
-| File                                                                                                                                     | Summary                                                                                                                                                                                                                                                                                                                                                                           |
-| ---                                                                                                                                      | ---                                                                                                                                                                                                                                                                                                                                                                               |
-| [watchlist_model.py](https://github.com/TexasCoding/py-alpaca-api/blob/master/src/py_alpaca_api/models/watchlist_model.py)               | Facilitates the conversion and management of watchlist data for the Alpaca API by defining the `WatchlistModel` data class, processing asset lists into `AssetModel` objects, and providing functions to transform raw data dictionaries into fully-formed `WatchlistModel` instances, thus ensuring compatibility with the repositorys overall architecture.                     |
-| [position_model.py](https://github.com/TexasCoding/py-alpaca-api/blob/master/src/py_alpaca_api/models/position_model.py)                 | Model investor positions, capturing attributes like asset details, market value, and performance metrics. Ensure seamless data transformation through a utility function that converts dictionaries into structured PositionModel instances. Central to monitoring and analyzing financial portfolios within the broader repository focused on trading and stock data management. |
-| [order_model.py](https://github.com/TexasCoding/py-alpaca-api/blob/master/src/py_alpaca_api/models/order_model.py)                       | Manages the definition and creation of order data models within the API context. Facilitates the processing, conversion, and organization of order-related information, supporting detailed order data extraction and representation in a standardized model crucial for trading operations and strategies in the parent repository.                                              |
-| [model_utils.py](https://github.com/TexasCoding/py-alpaca-api/blob/master/src/py_alpaca_api/models/model_utils.py)                       | Facilitates data extraction and transformation for various data models within the Alpaca API by providing utility functions to retrieve and process dictionary values. Ensures consistent and type-safe data parsing for integers, floats, strings, and dates, optimizing data handling across the repositorys different model layers.                                            |
-| [clock_model.py](https://github.com/TexasCoding/py-alpaca-api/blob/master/src/py_alpaca_api/models/clock_model.py)                       | Define a data model for market clock information, encapsulating the market status and key timestamps. Include functions for creating model instances from dictionaries, facilitating structured and efficient data handling within the broader API.                                                                                                                               |
-| [asset_model.py](https://github.com/TexasCoding/py-alpaca-api/blob/master/src/py_alpaca_api/models/asset_model.py)                       | Provide a structured abstraction for financial asset data, utilizing dataclass to define essential asset attributes. Facilitate transformation of data dictionaries to asset model instances, aiding in seamless interaction and manipulation within the broader trading API ecosystem. Boosts integration efficiency with other models and API endpoints.                        |
-| [account_model.py](https://github.com/TexasCoding/py-alpaca-api/blob/master/src/py_alpaca_api/models/account_model.py)                   | Define and structure the properties and behavior of account-related data within the context of the API. Enables conversion of dictionary data into AccountModel instances for seamless data management and interaction with Alpaca’s trading platform.                                                                                                                            |
-| [account_activity_model.py](https://github.com/TexasCoding/py-alpaca-api/blob/master/src/py_alpaca_api/models/account_activity_model.py) | Models account activity data in a structured format, enabling easy conversion from dictionary inputs. Facilitates efficient data encapsulation and retrieval for handling account-related events within the trading application. Integrates with existing model utilities for standardized processing and consistency within the repository’s architecture.                       |
-
-</details>
-
-<details closed><summary>src.py_alpaca_api.http</summary>
-
-| File                                                                                                       | Summary                                                                                                                                                                                        |
-| ---                                                                                                        | ---                                                                                                                                                                                            |
-| [requests.py](https://github.com/TexasCoding/py-alpaca-api/blob/master/src/py_alpaca_api/http/requests.py) | Handle HTTP requests with configurable retry strategies, ensuring resilient communication with APIs, essential for robust data exchanges and integrations within the py-alpaca-api repository. |
-
-</details>
-
-<details closed><summary>.github.workflows</summary>
-
-| File                                                                                                              | Summary                                                                                                                                                                                                                                                                     |
-| ---                                                                                                               | ---                                                                                                                                                                                                                                                                         |
-| [test-package.yaml](https://github.com/TexasCoding/py-alpaca-api/blob/master/.github/workflows/test-package.yaml) | Define the continuous integration workflow for the repository by automating the testing process. Configure multi-environment tests for the software package to ensure reliability and catch issues early by automatically running tests on every code push or pull request. |
-
-</details>
+Logs are automatically rotated and stored in `logs/` directory.
 
 ---
 
-##  Getting Started
+## 🔧 Technical Details
 
-**System Requirements:**
+### Database Schema
 
-* **Python**: `version 3.12.0`
+AutoTrader Pro uses SQLite with the following main tables:
 
-###  Installation
+- **trades**: Complete trading history
+- **positions**: Current and historical positions
+- **signals**: Generated trading signals
+- **portfolio_snapshots**: Portfolio state over time
+- **system_logs**: System events and errors
 
-<h4>From <code>source</code></h4>
+### Strategy Framework
 
-> 1. Clone the py-alpaca-api repository:
->
-> ```console
-> $ git clone https://github.com/TexasCoding/py-alpaca-api
-> ```
->
-> 2. Change to the project directory:
-> ```console
-> $ cd py-alpaca-api
-> ```
->
-> 3. Install the dependencies:
-> ```console
-> $ pip install -r requirements.txt
-> ```
+The system supports multiple trading strategies:
 
-###  Usage
+1. **Mean Reversion Strategy**: Identifies oversold/overbought conditions
+2. **Momentum Strategy**: Follows price trends and breakouts
+3. **Volatility Strategy**: Trades based on volatility patterns
+4. **Multi-Factor Strategy**: Combines multiple indicators
 
-<h4>From <code>source</code></h4>
+### Risk Management
 
-> Run py-alpaca-api using the command below:
-> ```python
-> import os
-> from py_alpaca_api import PyAlpacaAPI
->
-> api_key = os.environ.get("ALPACA_API_KEY") 
-> api_key = os.environ.get("ALPACA_SECRET_KEY") 
->
-> api = PyAlpacaAPI(api_key=api_key, api_secret=api_secret)
->
-> # Get the account information for the authenticated account.
-> account = api.trading.account.get()
-> 
-> # Get stock asset information
-> asset = api.stock.assets.get("AAPL")
->
-> # Get stock historical data
-> historical_data = api.stock.history.get_stock_data("AAPL", start="2021-01-01", end="2021-01-10")
-> ```
+**Portfolio Level:**
+- Maximum number of positions
+- Daily loss limits
+- Sector concentration limits
+- Correlation limits
 
-###  Tests
+**Position Level:**
+- Position sizing based on volatility
+- Stop-loss orders
+- Take-profit targets
+- Maximum holding periods
 
-> Run the test suite using the command below:
-> Export your API key and secret key as environment variables:
-> Or use .env file (recommended)
-> ```console
-> $ export ALPACA_API_KEY="YOUR_API_KEY"
-> $ export ALPACA_SECRET_KEY="YOUR_SECRET_KEY"
->
-> $ pytest
-> ```
+### Security Features
 
+- Environment variable configuration
+- API key encryption
+- Request rate limiting
+- Input validation and sanitization
+- Secure logging (no sensitive data)
 
-##  Contributing
+---
 
-Contributions are welcome! Here are several ways you can contribute:
+## 🧪 Testing
 
-- **[Report Issues](https://github.com/TexasCoding/py-alpaca-api/issues)**: Submit bugs found or log feature requests for the `py-alpaca-api` project.
-- **[Submit Pull Requests](https://github.com/TexasCoding/py-alpaca-api/blob/main/CONTRIBUTING.md)**: Review open PRs, and submit your own PRs.
-- **[Join the Discussions](https://github.com/TexasCoding/py-alpaca-api/discussions)**: Share your insights, provide feedback, or ask questions.
+Run the comprehensive test suite:
 
-<details closed>
-<summary>Contributing Guidelines</summary>
+```bash
+# Run all tests
+python -m pytest
 
-1. **Fork the Repository**: Start by forking the project repository to your github account.
-2. **Clone Locally**: Clone the forked repository to your local machine using a git client.
-   ```sh
-   git clone https://github.com/TexasCoding/py-alpaca-api
-   ```
-3. **Create a New Branch**: Always work on a new branch, giving it a descriptive name.
-   ```sh
-   git checkout -b new-feature-x
-   ```
-4. **Make Your Changes**: Develop and test your changes locally.
-5. **Commit Your Changes**: Commit with a clear message describing your updates.
-   ```sh
-   git commit -m 'Implemented new feature x.'
-   ```
-6. **Push to github**: Push the changes to your forked repository.
-   ```sh
-   git push origin new-feature-x
-   ```
-7. **Submit a Pull Request**: Create a PR against the original project repository. Clearly describe the changes and their motivations.
-8. **Review**: Once your PR is reviewed and approved, it will be merged into the main branch. Congratulations on your contribution!
-</details>
+# Run specific test categories
+python -m pytest tests/test_trading/
+python -m pytest tests/test_models/
+python -m pytest tests/test_integration/
 
-<details closed>
-<summary>Contributor Graph</summary>
-<br>
+# Run with coverage
+python -m pytest --cov=src/
+```
+
+**Test Coverage:**
+- Unit tests for all core components
+- Integration tests for broker interactions
+- End-to-end workflow testing
+- Performance and stress testing
+
+---
+
+## 🛡️ Production Considerations
+
+### Deployment Checklist
+
+- [ ] Environment variables configured
+- [ ] Database backup strategy in place
+- [ ] Monitoring and alerting configured
+- [ ] Log rotation and retention policy
+- [ ] Security review completed
+- [ ] Disaster recovery plan documented
+
+### Performance Optimization
+
+- Enable Redis caching for market data
+- Configure appropriate database connection pooling
+- Implement request rate limiting
+- Monitor memory usage and optimize accordingly
+
+### Security Best Practices
+
+- Use environment variables for sensitive configuration
+- Implement IP whitelisting for API access
+- Regular security audits and updates
+- Secure backup and disaster recovery procedures
+
+---
+
+## 📈 Performance Metrics
+
+AutoTrader Pro tracks comprehensive performance metrics:
+
+- **Trading Performance**: Win rate, profit/loss, Sharpe ratio
+- **System Performance**: Execution latency, uptime, error rates
+- **Risk Metrics**: Maximum drawdown, portfolio volatility
+- **Operational Metrics**: Order fill rates, signal accuracy
+
+All metrics are available through the dashboard and API endpoints.
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions to improve AutoTrader Pro! Here's how you can help:
+
+### Ways to Contribute
+
+- **Bug Reports**: Submit detailed bug reports with reproduction steps
+- **Feature Requests**: Suggest new features or improvements
+- **Code Contributions**: Submit pull requests with bug fixes or new features
+- **Documentation**: Help improve documentation and examples
+- **Testing**: Add test coverage or report testing results
+
+### Development Setup
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/new-feature`
+3. Make your changes and add tests
+4. Ensure all tests pass: `python -m pytest`
+5. Submit a pull request with a detailed description
+
+### Code Standards
+
+- Follow PEP 8 style guidelines
+- Add comprehensive docstrings
+- Include unit tests for new functionality
+- Update documentation as needed
+
+---
+
+## 🛡️ Security
+
+### Security Best Practices
+
+- **API Keys**: Never commit API keys to version control
+- **Environment Variables**: Use `.env` files for sensitive configuration
+- **Network Security**: Implement proper firewall rules in production
+- **Data Encryption**: Ensure data at rest and in transit is encrypted
+
+### Reporting Security Issues
+
+If you discover a security vulnerability, please email the maintainers directly rather than opening a public issue.
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- **Alpaca Markets**: For providing the excellent trading API
+- **Open Source Community**: For the amazing libraries and tools
+- **Contributors**: Thanks to all who have contributed to this project
+
+---
+
+## 📞 Support
+
+- **Documentation**: Complete documentation is available in this README
+- **Issues**: Report bugs and feature requests on GitHub
+- **Community**: Join discussions and share experiences
+
+---
+
 <p align="center">
-   <a href="https://github.com{/TexasCoding/py-alpaca-api/}graphs/contributors">
-      <img src="https://contrib.rocks/image?repo=TexasCoding/py-alpaca-api">
-   </a>
+    <strong>AutoTrader Pro v1.0.0</strong><br>
+    <em>Professional Automated Trading System</em>
 </p>
-</details>
-
----
-
-##  License
-
-This project is protected under the [MIT](https://choosealicense.com/licenses/mit/) License. For more details, refer to the [LICENSE](https://choosealicense.com/licenses/mit/) file.
-
----
-
-##  Acknowledgments
-
-- List any resources, contributors, inspiration, etc. here.
-
-[**Return**](#-overview)
-
----

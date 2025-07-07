@@ -1,7 +1,7 @@
 # Retrieves watchlist successfully using watchlist_id
 import json
 import pytest
-from py_alpaca_api.trading.watchlists import Watchlist
+from src.brokers.alpaca.api.trading.watchlists import Watchlist
 
 
 def test_retrieves_watchlist_successfully_using_watchlist_id(mocker):
@@ -15,7 +15,7 @@ def test_retrieves_watchlist_successfully_using_watchlist_id(mocker):
         "assets": [],
     }
     mocker.patch(
-        "py_alpaca_api.http.requests.Requests.request",
+        "src.brokers.alpaca.api.http.requests.Requests.request",
         return_value=mocker.Mock(text=json.dumps(mock_response)),
     )
     watchlist = Watchlist(

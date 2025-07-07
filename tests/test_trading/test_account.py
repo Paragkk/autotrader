@@ -1,9 +1,9 @@
 import json
 from unittest.mock import Mock, patch
 import pytest
-from py_alpaca_api.trading.account import Account
-from py_alpaca_api.http.requests import Requests
-from py_alpaca_api.models.account_model import AccountModel
+from src.brokers.alpaca.api.trading.account import Account
+from src.brokers.alpaca.api.http.requests import Requests
+from src.brokers.alpaca.api.models.account_model import AccountModel
 
 
 @pytest.fixture

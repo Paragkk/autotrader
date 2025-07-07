@@ -1,7 +1,7 @@
 import pytest
 import pendulum
-from py_alpaca_api.models.asset_model import AssetModel
-from py_alpaca_api.models.watchlist_model import (
+from src.brokers.alpaca.api.models.asset_model import AssetModel
+from src.brokers.alpaca.api.models.watchlist_model import (
     WatchlistModel,
     watchlist_class_from_dict,
 )

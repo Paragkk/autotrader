@@ -1,6 +1,6 @@
 import pytest
 import pendulum
-from py_alpaca_api.models.account_activity_model import (
+from src.brokers.alpaca.api.models.account_activity_model import (
     AccountActivityModel,
     account_activity_class_from_dict,
 )

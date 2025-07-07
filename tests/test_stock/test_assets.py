@@ -3,10 +3,10 @@ import os
 from unittest.mock import Mock, patch
 import pandas as pd
 import pytest
-from py_alpaca_api import PyAlpacaAPI
-from py_alpaca_api.stock.assets import Assets
-from py_alpaca_api.models.asset_model import AssetModel
-from py_alpaca_api.http.requests import Requests
+from src.brokers.alpaca.api import PyAlpacaAPI
+from src.brokers.alpaca.api.stock.assets import Assets
+from src.brokers.alpaca.api.models.asset_model import AssetModel
+from src.brokers.alpaca.api.http.requests import Requests
 
 
 api_key = os.environ.get("ALPACA_API_KEY")

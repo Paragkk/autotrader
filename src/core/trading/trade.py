@@ -1,0 +1,109 @@
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Dict, Optional
+from ..core.broker_adapter import BrokerAdapter
+
+
+@dataclass
+class Trade:
+    """
+    Represents a trade in the system including entry/exit orders and risk management parameters.
+    """
+
+    trade_id: str
+    symbol: str
+    side: str  # 'buy' or 'sell'
+    entry_type: str  # 'market', 'limit', 'stop', 'stop_limit'
+    quantity: float
+    entry_price: Optional[float] = None
+    stop_loss: Optional[float] = None
+    take_profit: Optional[float] = None
+    order_status: str = "NOT_PLACED"
+    entry_time: Optional[datetime] = None
+    exit_time: Optional[datetime] = None
+
+    def __post_init__(self):
+        self.order = {}
+        self.exit_order = {}
+        self._is_closed = False
+        self._broker: Optional[BrokerAdapter] = None
+
+    def set_broker(self, broker: BrokerAdapter):
+        """Set the broker adapter for executing trades."""
+        self._broker = broker
+
+    def place_entry_order(self) -> Dict:
+        """Place the entry order through the broker."""
+        if not self._broker:
+            raise ValueError("Broker not set. Call set_broker() first.")
+
+        self.order = self._broker.place_order(
+            symbol=self.symbol,
+            side=self.side,
+            order_type=self.entry_type,
+            quantity=self.quantity,
+            price=self.entry_price,
+        )
+
+        if self.stop_loss or self.take_profit:
+            self._place_risk_orders()
+
+        return self.order
+
+    def _place_risk_orders(self):
+        """Place stop loss and take profit orders."""
+        if not self._broker:
+            return
+
+        # Place stop loss
+        if self.stop_loss:
+            self._broker.place_order(
+                symbol=self.symbol,
+                side="sell" if self.side == "buy" else "buy",
+                order_type="stop",
+                quantity=self.quantity,
+                price=self.stop_loss,
+            )
+
+        # Place take profit
+        if self.take_profit:
+            self._broker.place_order(
+                symbol=self.symbol,
+                side="sell" if self.side == "buy" else "buy",
+                order_type="limit",
+                quantity=self.quantity,
+                price=self.take_profit,
+            )
+
+    def close_trade(self, exit_price: Optional[float] = None) -> Dict:
+        """Close the trade at market or specified price."""
+        if not self._broker or self._is_closed:
+            return {}
+
+        self.exit_order = self._broker.place_order(
+            symbol=self.symbol,
+            side="sell" if self.side == "buy" else "buy",
+            order_type="market" if not exit_price else "limit",
+            quantity=self.quantity,
+            price=exit_price,
+        )
+
+        self._is_closed = True
+        self.exit_time = datetime.now()
+        return self.exit_order
+
+    def get_status(self) -> Dict:
+        """Get the current status of the trade."""
+        return {
+            "trade_id": self.trade_id,
+            "symbol": self.symbol,
+            "side": self.side,
+            "quantity": self.quantity,
+            "entry_price": self.entry_price,
+            "stop_loss": self.stop_loss,
+            "take_profit": self.take_profit,
+            "status": self.order_status,
+            "entry_time": self.entry_time,
+            "exit_time": self.exit_time,
+            "is_closed": self._is_closed,
+        }

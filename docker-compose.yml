@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # Main trading system
+  autotrader:
+    build: .
+    container_name: autotrader-main
+    restart: unless-stopped
+    environment:
+      - ALPACA_API_KEY=${ALPACA_API_KEY}
+      - ALPACA_SECRET_KEY=${ALPACA_SECRET_KEY}
+      - DATABASE_URL=sqlite:////app/data/trading.db
+      - LOG_LEVEL=INFO
+      - ENVIRONMENT=production
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./config.yaml:/app/config.yaml:ro
+    ports:
+      - "8000:8000"
+      - "8501:8501"  # Dashboard port
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      - redis
+    networks:
+      - trading-network
+      
+  # Redis for caching and message queuing
+  redis:
+    image: redis:7-alpine
+    container_name: autotrader-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - trading-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  redis_data:
+    driver: local
+
+networks:
+  trading-network:
+    driver: bridge

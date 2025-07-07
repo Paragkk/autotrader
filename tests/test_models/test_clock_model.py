@@ -1,4 +1,4 @@
-from py_alpaca_api.models.clock_model import ClockModel, clock_class_from_dict
+from src.brokers.alpaca.api.models.clock_model import ClockModel, clock_class_from_dict
 import pendulum
 
 

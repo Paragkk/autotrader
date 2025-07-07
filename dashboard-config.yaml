@@ -1,0 +1,64 @@
+# AutoTrader Pro Dashboard Configuration
+
+# API Configuration
+api:
+  base_url: "http://localhost:8000"
+  timeout: 5
+  retry_attempts: 3
+
+# Dashboard Settings
+dashboard:
+  title: "AutoTrader Pro Dashboard"
+  theme: "dark"
+  auto_refresh: true
+  refresh_interval: 10  # seconds
+  
+# Display Settings
+display:
+  max_symbols_shown: 50
+  max_signals_shown: 100
+  max_orders_shown: 50
+  date_format: "%Y-%m-%d %H:%M:%S"
+  currency_format: "${:,.2f}"
+  
+# Charts Configuration
+charts:
+  portfolio_chart:
+    height: 400
+    line_color: "#1f77b4"
+    background_color: "#f8f9fa"
+  
+  strategy_chart:
+    height: 300
+    color_palette: ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd"]
+
+# Controls Configuration
+controls:
+  emergency_stop:
+    require_confirmation: true
+    confirmation_message: "Are you sure you want to stop all trading?"
+  
+  position_closure:
+    require_confirmation: true
+    batch_size: 10
+    
+  strategy_toggle:
+    allow_runtime_changes: true
+    
+# Alerts Configuration
+alerts:
+  show_success_messages: true
+  show_error_messages: true
+  message_timeout: 5  # seconds
+  
+# Security Settings
+security:
+  api_key_required: false
+  session_timeout: 3600  # seconds
+  max_failed_attempts: 5
+  
+# Performance Settings
+performance:
+  cache_duration: 30  # seconds
+  max_concurrent_requests: 10
+  enable_compression: true

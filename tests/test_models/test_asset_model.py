@@ -1,4 +1,4 @@
-from py_alpaca_api.models.asset_model import AssetModel, asset_class_from_dict
+from src.brokers.alpaca.api.models.asset_model import AssetModel, asset_class_from_dict
 
 
 def test_asset_class_from_dict():

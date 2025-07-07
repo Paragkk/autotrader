@@ -5,8 +5,8 @@ import datetime
 import pytest
 from pytz import timezone
 
-from py_alpaca_api import PyAlpacaAPI
-from py_alpaca_api.models.order_model import OrderModel
+from src.brokers.alpaca.api import PyAlpacaAPI
+from src.brokers.alpaca.api.models.order_model import OrderModel
 
 # The following keys are for testing purposes only
 # You should never hardcode your keys in your code
