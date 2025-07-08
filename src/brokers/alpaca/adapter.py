@@ -30,10 +30,42 @@ logger = logging.getLogger(__name__)
 class AlpacaBrokerAdapter(BrokerAdapter):
     """Alpaca broker adapter implementation"""
 
-    def __init__(self, api_key: str, api_secret: str, paper_trading: bool = True):
-        self.api_key = api_key
-        self.api_secret = api_secret
-        self.paper_trading = paper_trading
+    def __init__(self, config: Dict[str, Any]):
+        """
+        Initialize Alpaca broker adapter with configuration
+
+        Args:
+            config: Configuration dictionary containing Alpaca settings
+        """
+        # Extract required configuration
+        self.api_key = config.get("api_key") or config.get("alpaca_api_key")
+        self.api_secret = (
+            config.get("api_secret")
+            or config.get("secret_key")
+            or config.get("alpaca_secret_key")
+        )
+        self.paper_trading = config.get(
+            "paper_trading", config.get("use_paper_trading", True)
+        )
+
+        # Validate required fields
+        if not self.api_key or self.api_key == "your_alpaca_api_key_here":
+            raise ValueError(
+                "Missing or invalid ALPACA_API_KEY. Please:\n"
+                "1. Sign up for Alpaca paper trading at https://app.alpaca.markets\n"
+                "2. Get your API key from the dashboard\n"
+                "3. Set ALPACA_API_KEY in your .env file"
+            )
+        if not self.api_secret or self.api_secret == "your_alpaca_secret_key_here":
+            raise ValueError(
+                "Missing or invalid ALPACA_SECRET_KEY. Please:\n"
+                "1. Sign up for Alpaca paper trading at https://app.alpaca.markets\n"
+                "2. Get your secret key from the dashboard\n"
+                "3. Set ALPACA_SECRET_KEY in your .env file"
+            )
+
+        # Store full config for other settings
+        self.config = config
         self._client: Optional[PyAlpacaAPI] = None
         self._connected = False
 
@@ -44,6 +76,10 @@ class AlpacaBrokerAdapter(BrokerAdapter):
     async def connect(self) -> bool:
         """Connect to Alpaca API"""
         try:
+            logger.info(
+                f"Connecting to Alpaca API ({'paper' if self.paper_trading else 'live'} trading)"
+            )
+
             self._client = PyAlpacaAPI(
                 api_key=self.api_key,
                 api_secret=self.api_secret,
@@ -55,14 +91,19 @@ class AlpacaBrokerAdapter(BrokerAdapter):
             if account:
                 self._connected = True
                 logger.info(
-                    f"Connected to Alpaca ({'paper' if self.paper_trading else 'live'} trading)"
+                    f"✅ Connected to Alpaca ({'paper' if self.paper_trading else 'live'} trading)"
                 )
+                logger.info(f"Account ID: {account.id}")
+                logger.info(f"Account Status: {account.status}")
                 return True
             else:
                 raise BrokerConnectionError("Failed to get account info")
 
         except Exception as e:
-            logger.error(f"Failed to connect to Alpaca: {e}")
+            logger.error(f"❌ Failed to connect to Alpaca: {e}")
+            logger.error("💡 Please check your API credentials and network connection")
+            raise BrokerConnectionError(f"Alpaca connection failed: {e}")
+            logger.info("💡 Check your API credentials and network connection")
             raise BrokerConnectionError(f"Alpaca connection failed: {e}")
 
     async def disconnect(self) -> None:

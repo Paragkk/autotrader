@@ -17,7 +17,7 @@ database:
   
 # Broker Configuration
 broker:
-  name: "alpaca"  # Currently only Alpaca supported
+  name: "alpaca"  # Use Alpaca broker for paper trading
   paper_trading: true
   api_key: "${ALPACA_API_KEY}"
   secret_key: "${ALPACA_SECRET_KEY}"

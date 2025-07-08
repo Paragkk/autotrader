@@ -7,6 +7,7 @@ import os
 import yaml
 from pathlib import Path
 from typing import Dict, Any, Union, List
+import re
 
 from .path_utils import get_project_root
 
@@ -175,7 +176,11 @@ def load_config(config_path: Union[str, Path, None] = None) -> Dict[str, Any]:
             if resolved_path.exists():
                 with resolved_path.open("r", encoding="utf-8") as f:
                     main_config = yaml.safe_load(f) or {}
-                broker_name = main_config.get("broker", "alpaca")
+                # Handle both flat and nested broker configuration
+                if isinstance(main_config.get("broker"), dict):
+                    broker_name = main_config["broker"].get("name", "alpaca")
+                else:
+                    broker_name = main_config.get("broker", "alpaca")
             else:
                 # If main config doesn't exist, use default
                 broker_name = "alpaca"
@@ -213,7 +218,13 @@ def load_config(config_path: Union[str, Path, None] = None) -> Dict[str, Any]:
     config_data = merge_configs(base_config, broker_config, main_config)
 
     # Override broker name if it came from environment
-    config_data["broker"] = broker_name
+    # Preserve broker configuration structure
+    if "broker" not in config_data:
+        config_data["broker"] = {}
+    if isinstance(config_data["broker"], dict):
+        config_data["broker"]["name"] = broker_name
+    else:
+        config_data["broker"] = {"name": broker_name}
 
     # Environment variables take precedence over config file values
     # This is useful for secrets and deployment-specific overrides
@@ -250,7 +261,36 @@ def load_config(config_path: Union[str, Path, None] = None) -> Dict[str, Any]:
         else:
             config_data[config_key] = env_value
 
+    # Substitute environment variables in config data
+    config_data = substitute_env_vars(config_data)
+
     return config_data
+
+
+def substitute_env_vars(config_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Recursively substitute environment variables in config data.
+
+    Replaces ${VAR_NAME} with the value from environment variables.
+    """
+    if isinstance(config_data, dict):
+        result = {}
+        for key, value in config_data.items():
+            result[key] = substitute_env_vars(value)
+        return result
+    elif isinstance(config_data, list):
+        return [substitute_env_vars(item) for item in config_data]
+    elif isinstance(config_data, str):
+        # Replace ${VAR_NAME} with environment variable value
+        pattern = r"\$\{([^}]+)\}"
+
+        def replace_var(match):
+            var_name = match.group(1)
+            return os.getenv(var_name, match.group(0))  # Return original if not found
+
+        return re.sub(pattern, replace_var, config_data)
+    else:
+        return config_data
 
 
 def get_available_brokers() -> List[str]:

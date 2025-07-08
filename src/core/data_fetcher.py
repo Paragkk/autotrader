@@ -159,13 +159,31 @@ class DataFetcher:
     ) -> pd.DataFrame:
         """Fetch intraday data for a symbol"""
         try:
-            # Get intraday data from Alpaca
-            data = self.alpaca_client.stock.history.get_stock_data(
+            # Get intraday data from broker
+            bars = self.broker_adapter.get_historical_bars(
                 symbol=symbol,
-                timeframe=timeframe,
                 start=None,  # Use default lookback
                 end=None,
+                timeframe=timeframe,
             )
+
+            # Convert to DataFrame
+            data_records = []
+            for bar in bars:
+                data_records.append(
+                    {
+                        "timestamp": bar.timestamp,
+                        "open": bar.open,
+                        "high": bar.high,
+                        "low": bar.low,
+                        "close": bar.close,
+                        "volume": bar.volume,
+                        "vwap": bar.vwap,
+                        "trade_count": bar.trade_count,
+                    }
+                )
+
+            data = pd.DataFrame(data_records)
 
             logger.info(
                 f"Fetched intraday data for {symbol} with timeframe {timeframe}"
@@ -190,7 +208,8 @@ class DataFetcher:
 
             for symbol in symbols:
                 try:
-                    news_data = self.alpaca_client.trading.news.get_news(
+                    # Get news from broker adapter
+                    news_data = self.broker_adapter.get_news(
                         symbol=symbol, limit=limit // len(symbols)
                     )
                     for article in news_data:
@@ -222,17 +241,17 @@ class DataFetcher:
     ) -> Dict[str, pd.DataFrame]:
         """Fetch market screener data (gainers/losers)"""
         try:
-            # Get gainers and losers
-            gainers = self.alpaca_client.stock.screener.gainers(
+            # Get gainers and losers from broker adapter
+            gainers = self.broker_adapter.get_gainers(
                 price_greater_than=price_min,
                 volume_greater_than=volume_min,
-                total_gainers_returned=limit,
+                limit=limit,
             )
 
-            losers = self.alpaca_client.stock.screener.losers(
+            losers = self.broker_adapter.get_losers(
                 price_greater_than=price_min,
                 volume_greater_than=volume_min,
-                total_losers_returned=limit,
+                limit=limit,
             )
 
             logger.info(f"Fetched {len(gainers)} gainers and {len(losers)} losers")

@@ -192,9 +192,10 @@ class RiskFilterResult(RiskFilterResultBase, table=True):
 class OrderBase(SQLModel):
     """Base model for orders"""
 
-    broker_order_id: Optional[str] = Field(
-        default=None, max_length=50, index=True, unique=True
-    )
+    broker_name: str = Field(
+        max_length=20, index=True
+    )  # 'alpaca', 'interactive_brokers', etc.
+    broker_order_id: Optional[str] = Field(default=None, max_length=50, index=True)
     symbol: str = Field(index=True, max_length=10)
     side: str = Field(max_length=10)  # 'buy', 'sell'
     quantity: float
@@ -230,6 +231,9 @@ class Order(OrderBase, table=True):
 class PositionBase(SQLModel):
     """Base model for positions"""
 
+    broker_name: str = Field(
+        max_length=20, index=True
+    )  # 'alpaca', 'interactive_brokers', etc.
     symbol: str = Field(index=True, max_length=10)
     quantity: float
     side: str = Field(max_length=10)  # 'long', 'short'
@@ -269,6 +273,9 @@ class Position(PositionBase, table=True):
 class TradeLogBase(SQLModel):
     """Base model for trade logs"""
 
+    broker_name: str = Field(
+        max_length=20, index=True
+    )  # 'alpaca', 'interactive_brokers', etc.
     symbol: str = Field(index=True, max_length=10)
     signal_generated_at: datetime
     order_placed_at: datetime
@@ -351,58 +358,29 @@ class ConfigurationHistory(ConfigurationHistoryBase, table=True):
     )
 
 
-# Stock data models (for repository use)
-class StockDataBase(SQLModel):
-    """Base model for stock data"""
+class BrokerAccountBase(SQLModel):
+    """Base model for broker account information"""
 
-    symbol: str = Field(index=True, max_length=10)
-    date: str  # Using string for date to match repository pattern
-    open: Optional[float] = None
-    high: Optional[float] = None
-    low: Optional[float] = None
-    close: Optional[float] = None
-    volume: Optional[int] = None
-    vwap: Optional[float] = None
-    trade_count: Optional[int] = None
-
-
-class StockData(StockDataBase, table=True):
-    """Table for storing stock market data"""
-
-    __tablename__ = "stock_data"
-
-    id: Optional[int] = Field(default=None, primary_key=True)
-    last_updated: datetime = Field(
-        sa_column=Column(DateTime, server_default=func.now(), nullable=False)
-    )
+    broker_name: str = Field(max_length=20, index=True, unique=True)
+    account_id: str = Field(max_length=50, index=True)
+    buying_power: float = Field(default=0.0)
+    cash: float = Field(default=0.0)
+    portfolio_value: float = Field(default=0.0)
+    equity: float = Field(default=0.0)
+    day_trading_power: Optional[float] = None
+    pattern_day_trader: bool = Field(default=False)
+    account_status: str = Field(default="active", max_length=20)
+    paper_trading: bool = Field(default=True)
 
 
-class SymbolBase(SQLModel):
-    """Base model for symbols"""
+class BrokerAccount(BrokerAccountBase, table=True):
+    """Table for storing broker account information"""
 
-    symbol: str = Field(index=True, max_length=10, unique=True)
-    name: Optional[str] = None
-    exchange: Optional[str] = None
-    asset_class: Optional[str] = None
-    tradable: bool = Field(default=True)
-    marginable: bool = Field(default=False)
-    shortable: bool = Field(default=False)
-    easy_to_borrow: bool = Field(default=False)
-    fractionable: bool = Field(default=False)
-    active: bool = Field(default=True)
-    extra_metadata: Optional[str] = Field(
-        default=None, alias="metadata"
-    )  # JSON string for additional metadata
-
-
-class Symbol(SymbolBase, table=True):
-    """Table for storing symbol metadata"""
-
-    __tablename__ = "symbols"
+    __tablename__ = "broker_accounts"
 
     id: Optional[int] = Field(default=None, primary_key=True)
     last_updated: datetime = Field(
-        sa_column=Column(DateTime, server_default=func.now(), nullable=False)
+        sa_column=Column(DateTime, server_default=func.now(), onupdate=func.now())
     )
 
 

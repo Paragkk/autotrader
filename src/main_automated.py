@@ -8,14 +8,11 @@ import logging
 from datetime import datetime, timedelta
 from typing import Dict, Optional, Any
 from dataclasses import dataclass
-import yaml
 from pathlib import Path
-import os
 import subprocess
 import sys
 import time
 
-# Add APScheduler to dependencies
 try:
     from apscheduler.schedulers.asyncio import AsyncIOScheduler
     from apscheduler.triggers.cron import CronTrigger
@@ -26,8 +23,7 @@ except ImportError:
     CronTrigger = None
     IntervalTrigger = None
 
-from sqlmodel import create_engine, Session, SQLModel
-from sqlalchemy import desc
+from sqlmodel import create_engine, Session, SQLModel, select
 
 from db.models import (
     ScreenedStock,
@@ -43,14 +39,18 @@ from core.stock_screener import EnhancedStockScreener, ScreeningCriteria
 from core.strategy_engine import StrategyEngine
 from core.signal_aggregator import SignalAggregator
 from core.risk_management import RiskManager
-from brokers.alpaca.adapter import AlpacaBrokerAdapter
 from core.stock_scorer import StockScorer
 from core.order_executor import OrderExecutor
 from core.position_monitor import PositionMonitor
 from core.data_fetcher import DataFetcher
 from db.repository import SymbolRepository, StockDataRepository, SignalRepository
 from infra.logging_config import setup_logging
+from infra.config import load_config  # Use the proper config loader
+from brokers.base.factory import get_broker_adapter
 
+from dotenv import load_dotenv
+
+load_dotenv()
 logger = logging.getLogger(__name__)
 
 
@@ -61,67 +61,11 @@ class TradingConfig:
     config_path: Path = Path("config.yaml")
 
     def __post_init__(self):
-        if self.config_path.exists():
-            with open(self.config_path, "r") as f:
-                self.config = yaml.safe_load(f)
-        else:
-            # Default configuration
-            self.config = self._default_config()
+        if not self.config_path.exists():
+            raise FileNotFoundError(f"Configuration file not found: {self.config_path}")
 
-    def _default_config(self) -> Dict[str, Any]:
-        """Default configuration if file doesn't exist"""
-        return {
-            "database": {"url": "sqlite:///data/trading.db"},
-            "trading": {"max_positions": 10},
-            "screening": {
-                "enabled": True,
-                "schedule": "0 */1 * * *",  # Every hour
-                "criteria": {
-                    "min_price": 5.0,
-                    "max_price": 500.0,
-                    "min_volume": 250000,
-                    "min_daily_change": -15.0,
-                    "max_daily_change": 15.0,
-                },
-                "max_symbols": 50,
-            },
-            "strategies": {
-                "schedule": "*/10 * * * *",  # Every 10 minutes
-                "weights": {
-                    "moving_average_crossover": 0.25,
-                    "rsi_strategy": 0.25,
-                    "momentum_strategy": 0.20,
-                    "breakout_strategy": 0.15,
-                    "mean_reversion": 0.15,
-                },
-                "signal_threshold": 0.6,
-            },
-            "broker": {
-                "name": "alpaca",
-                "api_key": os.getenv("ALPACA_API_KEY", ""),
-                "secret_key": os.getenv("ALPACA_SECRET_KEY", ""),
-                "paper_trading": True,
-            },
-            "risk": {
-                "max_exposure_per_trade": 0.05,
-                "max_exposure_per_sector": 0.20,
-                "portfolio_risk_limit": 0.15,
-            },
-            "monitoring": {
-                "schedule": "*/5 * * * *"  # Every 5 minutes
-            },
-            "scoring": {
-                "factors": {
-                    "momentum": 0.25,
-                    "volume": 0.20,
-                    "volatility": 0.15,
-                    "technical": 0.20,
-                    "sentiment": 0.10,
-                    "fundamentals": 0.10,
-                },
-                "top_n_stocks": 30,
-            },
-        }
+        # Use the proper config loader that handles environment variables
+        self.config = load_config(self.config_path)
 
     @property
     def database_url(self) -> str:
@@ -167,16 +111,12 @@ class AutomatedTradingSystem:
         SQLModel.metadata.create_all(self.engine)
         self.db_session = Session(self.engine)
 
-        # Initialize components
+        # Initialize broker adapter using generic factory
         broker_config = config.config["broker"]
-        if broker_config["name"] == "alpaca":
-            self.broker_adapter = AlpacaBrokerAdapter(
-                api_key=broker_config["api_key"],
-                api_secret=broker_config["secret_key"],
-                paper_trading=broker_config.get("paper_trading", True),
-            )
-        else:
-            raise ValueError(f"Unsupported broker: {broker_config['name']}")
+        broker_name = broker_config["name"]
+
+        # Create broker adapter (factory handles validation)
+        self.broker_adapter = get_broker_adapter(broker_name, broker_config)
 
         # Initialize repositories
         db_path = config.config["database"]["url"].replace("sqlite:///", "")
@@ -310,10 +250,16 @@ class AutomatedTradingSystem:
     async def _verify_broker_connection(self):
         """Verify broker connection and account status"""
         try:
-            # For now, just log that we're verifying
+            logger.info("🔌 Connecting to broker...")
+            # First connect to the broker
+            await self.broker_adapter.connect()
+
             logger.info("🔌 Verifying broker connection...")
-            # account = await self.broker_adapter.get_account()
-            # logger.info(f"📊 Account Status: {account.status}")
+            account = await self.broker_adapter.get_account_info()
+            logger.info(f"📊 Account ID: {account.account_id}")
+            logger.info(f"💰 Portfolio Value: ${account.portfolio_value:,.2f}")
+            logger.info(f"💵 Available Cash: ${account.cash:,.2f}")
+            logger.info(f"🏦 Buying Power: ${account.buying_power:,.2f}")
             logger.info("✅ Broker connection verified")
         except Exception as e:
             logger.error(f"❌ Broker connection failed: {e}")
@@ -375,13 +321,11 @@ class AutomatedTradingSystem:
 
         try:
             # Get recently screened stocks
-            recent_stocks = (
-                self.db_session.query(ScreenedStock)
-                .filter(
+            recent_stocks = self.db_session.exec(
+                select(ScreenedStock).where(
                     ScreenedStock.screened_at >= datetime.now() - timedelta(hours=2)
                 )
-                .all()
-            )
+            ).all()
 
             # For now, assign random scores (implement actual scoring logic)
             import random
@@ -429,15 +373,14 @@ class AutomatedTradingSystem:
 
     async def _update_stock_rankings(self):
         """Update stock rankings based on scores"""
-        today_scores = (
-            self.db_session.query(StockScore)
-            .filter(
+        today_scores = self.db_session.exec(
+            select(StockScore)
+            .where(
                 StockScore.scored_at
                 >= datetime.now().replace(hour=0, minute=0, second=0)
             )
-            .order_by(desc(StockScore.score))
-            .all()
-        )
+            .order_by(StockScore.score.desc())
+        ).all()
 
         for rank, score in enumerate(today_scores, 1):
             score.rank = rank
@@ -452,26 +395,23 @@ class AutomatedTradingSystem:
 
         try:
             # Get top N scored stocks
-            top_stocks = (
-                self.db_session.query(StockScore)
-                .filter(
+            top_stocks = self.db_session.exec(
+                select(StockScore)
+                .where(
                     StockScore.scored_at
                     >= datetime.now().replace(hour=0, minute=0, second=0)
                 )
-                .order_by(desc(StockScore.score))
+                .order_by(StockScore.score.desc())
                 .limit(self.config.config["scoring"]["top_n_stocks"])
-                .all()
-            )
+            ).all()
 
             # Add new symbols to tracking
             for stock in top_stocks:
-                existing = (
-                    self.db_session.query(TrackedSymbol)
-                    .filter(
+                existing = self.db_session.exec(
+                    select(TrackedSymbol).where(
                         TrackedSymbol.symbol == stock.symbol, TrackedSymbol.is_active
                     )
-                    .first()
-                )
+                ).first()
 
                 if not existing:
                     tracked_symbol = TrackedSymbol(
@@ -497,11 +437,9 @@ class AutomatedTradingSystem:
 
         try:
             # Get active tracked symbols
-            tracked_symbols = (
-                self.db_session.query(TrackedSymbol)
-                .filter(TrackedSymbol.is_active)
-                .all()
-            )
+            tracked_symbols = self.db_session.exec(
+                select(TrackedSymbol).where(TrackedSymbol.is_active)
+            ).all()
 
             # Run strategies on each symbol
             for symbol_obj in tracked_symbols:
@@ -557,13 +495,11 @@ class AutomatedTradingSystem:
 
         try:
             # Get recent strategy results
-            recent_results = (
-                self.db_session.query(StrategyResult)
-                .filter(
+            recent_results = self.db_session.exec(
+                select(StrategyResult).where(
                     StrategyResult.analyzed_at >= datetime.now() - timedelta(minutes=30)
                 )
-                .all()
-            )
+            ).all()
 
             # Group by symbol
             symbol_results = {}
@@ -612,9 +548,9 @@ class AutomatedTradingSystem:
             logger.info("🔍 Monitoring positions...")
 
             # Get current positions from database
-            open_positions = (
-                self.db_session.query(Position).filter(Position.status == "open").all()
-            )
+            open_positions = self.db_session.exec(
+                select(Position).where(Position.status == "open")
+            ).all()
 
             logger.info(f"📊 Found {len(open_positions)} open positions")
 
@@ -632,14 +568,16 @@ class AutomatedTradingSystem:
         try:
             # Count today's activities
             today = datetime.now().replace(hour=0, minute=0, second=0)
-            signals_today = (
-                self.db_session.query(Signal)
-                .filter(Signal.generated_at >= today)
-                .count()
+            signals_today = len(
+                self.db_session.exec(
+                    select(Signal).where(Signal.generated_at >= today)
+                ).all()
             )
 
-            orders_today = (
-                self.db_session.query(Order).filter(Order.created_at >= today).count()
+            orders_today = len(
+                self.db_session.exec(
+                    select(Order).where(Order.created_at >= today)
+                ).all()
             )
 
             # Record metrics
@@ -665,17 +603,15 @@ class AutomatedTradingSystem:
         """Get current system status"""
         try:
             # Get latest metrics
-            latest_metrics = (
-                self.db_session.query(SystemMetrics)
-                .order_by(desc(SystemMetrics.recorded_at))
-                .first()
-            )
+            latest_metrics = self.db_session.exec(
+                select(SystemMetrics).order_by(SystemMetrics.recorded_at.desc())
+            ).first()
 
             # Get pending signals
-            pending_signals = (
-                self.db_session.query(Signal)
-                .filter(Signal.status.in_(["pending", "approved"]))
-                .count()
+            pending_signals = len(
+                self.db_session.exec(
+                    select(Signal).where(Signal.status.in_(["pending", "approved"]))
+                ).all()
             )
 
             return {

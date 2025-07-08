@@ -472,3 +472,178 @@ class SignalRepository(SQLiteRepository):
         if symbol:
             filters["symbol"] = symbol
         return self.list(**filters)
+
+
+class BrokerRepository(SQLiteRepository):
+    """Repository for broker-specific data and operations"""
+
+    def __init__(self, db_path: str):
+        super().__init__(db_path, "brokers")
+        self._create_tables()
+
+    def _create_tables(self):
+        """Create broker-related tables"""
+        create_broker_table_sql = """
+        CREATE TABLE IF NOT EXISTS brokers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL,
+            type TEXT,  -- e.g., 'stock', 'forex', 'crypto'
+            api_key TEXT,
+            api_secret TEXT,
+            passphrase TEXT,
+            is_enabled BOOLEAN DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+
+        create_account_table_sql = """
+        CREATE TABLE IF NOT EXISTS broker_accounts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            broker_id INTEGER,
+            account_id TEXT,
+            account_type TEXT,  -- e.g., 'individual', 'joint'
+            currency TEXT,
+            balance REAL DEFAULT 0,
+            is_primary BOOLEAN DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (broker_id) REFERENCES brokers (id) ON DELETE CASCADE
+        )
+        """
+
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(create_broker_table_sql)
+            conn.execute(create_account_table_sql)
+            conn.commit()
+
+    # Broker Methods
+    def add_broker(self, broker_data: Dict[str, Any]) -> str:
+        """Add a new broker"""
+        return self.add(broker_data)
+
+    def get_broker(self, id_: str) -> Optional[Dict[str, Any]]:
+        """Get broker by ID"""
+        return self.get(id_)
+
+    def list_brokers(self) -> List[Dict[str, Any]]:
+        """List all brokers"""
+        return self.list()
+
+    def update_broker(self, id_: str, updates: Dict[str, Any]) -> bool:
+        """Update broker information"""
+        return self.update(id_, updates)
+
+    def delete_broker(self, id_: str) -> bool:
+        """Delete broker by ID"""
+        return self.delete(id_)
+
+    # Broker Account Methods
+    def get_broker_account(self, broker_name: str) -> Optional[Dict[str, Any]]:
+        """Get broker account by broker name"""
+        return self._get_single("broker_accounts", {"broker_name": broker_name})
+
+    def create_broker_account(self, account_data: Dict[str, Any]) -> str:
+        """Create new broker account record"""
+        return self._insert("broker_accounts", account_data)
+
+    def update_broker_account(
+        self, broker_name: str, account_data: Dict[str, Any]
+    ) -> bool:
+        """Update broker account information"""
+        return self._update(
+            "broker_accounts", {"broker_name": broker_name}, account_data
+        )
+
+    def list_broker_accounts(self) -> List[Dict[str, Any]]:
+        """List all broker accounts"""
+        return self._list("broker_accounts")
+
+    # Enhanced Order Methods with Broker Support
+    def get_orders_by_broker(
+        self, broker_name: str, status: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Get orders for specific broker"""
+        filters = {"broker_name": broker_name}
+        if status:
+            filters["status"] = status
+        return self._list("orders", filters)
+
+    def get_order_by_broker_order_id(
+        self, broker_name: str, broker_order_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """Get order by broker name and broker order ID"""
+        return self._get_single(
+            "orders", {"broker_name": broker_name, "broker_order_id": broker_order_id}
+        )
+
+    # Enhanced Position Methods with Broker Support
+    def get_positions_by_broker(self, broker_name: str) -> List[Dict[str, Any]]:
+        """Get positions for specific broker"""
+        return self._list("positions", {"broker_name": broker_name})
+
+    def get_position_by_broker_symbol(
+        self, broker_name: str, symbol: str
+    ) -> Optional[Dict[str, Any]]:
+        """Get position for specific broker and symbol"""
+        return self._get_single(
+            "positions",
+            {"broker_name": broker_name, "symbol": symbol, "status": "open"},
+        )
+
+    def upsert_position(self, position_data: Dict[str, Any]) -> str:
+        """Insert or update position record"""
+        existing = self.get_position_by_broker_symbol(
+            position_data["broker_name"], position_data["symbol"]
+        )
+
+        if existing:
+            # Update existing position
+            self._update("positions", {"id": existing["id"]}, position_data)
+            return existing["id"]
+        else:
+            # Create new position
+            return self._insert("positions", position_data)
+
+    # Cross-Broker Analytics Methods
+    def get_total_portfolio_value_by_broker(self) -> Dict[str, float]:
+        """Get portfolio value breakdown by broker"""
+        query = """
+        SELECT broker_name, SUM(portfolio_value) as total_value
+        FROM broker_accounts 
+        GROUP BY broker_name
+        """
+        results = self._execute_query(query)
+        return {row["broker_name"]: row["total_value"] for row in results}
+
+    def get_position_summary_by_broker(self) -> Dict[str, Dict[str, Any]]:
+        """Get position summary by broker"""
+        query = """
+        SELECT 
+            broker_name,
+            COUNT(*) as position_count,
+            SUM(quantity * avg_entry_price) as total_market_value,
+            SUM(unrealized_pnl) as total_unrealized_pnl
+        FROM positions 
+        WHERE status = 'open'
+        GROUP BY broker_name
+        """
+        results = self._execute_query(query)
+
+        summary = {}
+        for row in results:
+            summary[row["broker_name"]] = {
+                "position_count": row["position_count"],
+                "total_market_value": row["total_market_value"],
+                "total_unrealized_pnl": row["total_unrealized_pnl"],
+            }
+        return summary
+
+    def get_cross_broker_symbol_exposure(self, symbol: str) -> List[Dict[str, Any]]:
+        """Get exposure to a symbol across all brokers"""
+        query = """
+        SELECT broker_name, quantity, avg_entry_price, unrealized_pnl
+        FROM positions 
+        WHERE symbol = ? AND status = 'open'
+        """
+        return self._execute_query(query, (symbol,))
