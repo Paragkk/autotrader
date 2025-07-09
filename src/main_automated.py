@@ -111,12 +111,17 @@ class AutomatedTradingSystem:
         SQLModel.metadata.create_all(self.engine)
         self.db_session = Session(self.engine)
 
-        # Initialize broker adapter using generic factory
-        broker_config = config.config["broker"]
-        broker_name = broker_config["name"]
+        # Initialize single broker adapter - use first active broker from config
+        from infra.config import get_first_active_broker, get_broker_config
 
-        # Create broker adapter (factory handles validation)
-        self.broker_adapter = get_broker_adapter(broker_name, broker_config)
+        # Get the first active/enabled broker and its configuration
+        active_broker = get_first_active_broker(config.config)
+        broker_config = get_broker_config(active_broker, config.config)
+
+        # Create broker adapter using factory
+        self.broker_adapter = get_broker_adapter(active_broker, broker_config)
+
+        logger.info(f"✅ Initialized {active_broker} broker adapter")
 
         # Initialize repositories
         db_path = config.config["database"]["url"].replace("sqlite:///", "")

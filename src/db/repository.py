@@ -577,6 +577,10 @@ class BrokerRepository(SQLiteRepository):
             "orders", {"broker_name": broker_name, "broker_order_id": broker_order_id}
         )
 
+    def create_order(self, order_data: Dict[str, Any]) -> str:
+        """Create new order record"""
+        return self._insert("orders", order_data)
+
     # Enhanced Position Methods with Broker Support
     def get_positions_by_broker(self, broker_name: str) -> List[Dict[str, Any]]:
         """Get positions for specific broker"""

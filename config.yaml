@@ -1,5 +1,6 @@
-# Professional Automated Trading System Configuration
-# =======================================================
+# Consolidated AutoTrader Configuration
+# =====================================
+# Single configuration file for the entire trading system
 
 # Application Configuration
 app:
@@ -7,23 +8,49 @@ app:
   version: "1.0.0"
   environment: "production"  # development, staging, production
   debug: false
-  
+
 # Database Configuration
 database:
-  url: "sqlite:///data/trading.db"  # Use mounted volume in Docker
+  url: "sqlite:///data/trading.db"
   pool_size: 20
   max_overflow: 30
-  echo: false  # Set to true for SQL debugging
-  
-# Broker Configuration
-broker:
-  name: "alpaca"  # Use Alpaca broker for paper trading
-  paper_trading: true
-  api_key: "${ALPACA_API_KEY}"
-  secret_key: "${ALPACA_SECRET_KEY}"
-  base_url: "https://paper-api.alpaca.markets"
-  market_data_feed: "iex"
-  
+  echo: false
+
+# Multi-Broker Configuration
+# Note: Only one broker should be enabled at a time
+# Use ACTIVE_BROKER environment variable to select which broker to use
+brokers:
+  # Alpaca Configuration
+  alpaca:
+    enabled: true
+    # API credentials loaded from environment variables (ALPACA_API_KEY, ALPACA_SECRET_KEY)
+    base_url: "https://paper-api.alpaca.markets"
+    paper_trading: true
+    market_data_feed: "iex"
+    order_timeout: 60
+    max_order_retries: 3
+    extended_hours: false
+    enable_websocket: true
+    websocket_reconnect_attempts: 5
+    websocket_reconnect_delay: 5
+    max_bars_per_request: 1000
+    rate_limit_requests_per_minute: 200
+    
+  # Interactive Brokers Configuration
+  interactive_brokers:
+    enabled: false
+    # API credentials loaded from environment variables (IB_API_KEY, IB_SECRET_KEY)
+    base_url: "https://api.interactivebrokers.com"
+    paper_trading: true
+    order_timeout: 120
+    max_order_retries: 3
+    
+  # Demo Broker Configuration (for testing)
+  demo_broker:
+    enabled: false
+    # Credentials loaded from environment variables (DEMO_API_KEY, DEMO_SECRET_KEY)
+    base_url: "https://demo.api.com"
+    paper_trading: true
 # Trading Configuration
 trading:
   max_positions: 15
@@ -33,32 +60,7 @@ trading:
   take_profit_percent: 0.08   # 8% take profit
   order_timeout: 60
   max_order_retries: 3
-  
-# Automated Screening Configuration
-screening:
-  enabled: true
-  schedule: "0 */1 * * *"  # Every hour (cron format)
-  max_symbols: 50
-  criteria:
-    min_price: 5.0
-    max_price: 500.0
-    min_volume: 250000
-    min_daily_change: -15.0
-    max_daily_change: 15.0
-    exclude_penny_stocks: true
-    
-# Stock Scoring Configuration
-scoring:
-  enabled: true
-  factors:
-    momentum: 0.25
-    volume: 0.20
-    volatility: 0.15
-    technical: 0.20
-    sentiment: 0.10
-    fundamentals: 0.10
-  top_n_stocks: 30  # Select top N stocks from screening
-  
+
 # Strategy Configuration
 strategies:
   enabled: true
@@ -70,7 +72,32 @@ strategies:
     breakout_strategy: 0.15
     mean_reversion: 0.15
   signal_threshold: 0.6  # Minimum confidence score
-  
+
+# Automated Screening Configuration
+screening:
+  enabled: true
+  schedule: "0 */1 * * *"  # Every hour
+  max_symbols: 50
+  criteria:
+    min_price: 5.0
+    max_price: 500.0
+    min_volume: 250000
+    min_daily_change: -15.0
+    max_daily_change: 15.0
+    exclude_penny_stocks: true
+
+# Stock Scoring Configuration
+scoring:
+  enabled: true
+  factors:
+    momentum: 0.25
+    volume: 0.20
+    volatility: 0.15
+    technical: 0.20
+    sentiment: 0.10
+    fundamentals: 0.10
+  top_n_stocks: 30
+
 # Risk Management Configuration
 risk:
   enabled: true
@@ -78,42 +105,40 @@ risk:
   max_exposure_per_sector: 0.20    # 20% of portfolio
   max_correlation: 0.7             # Maximum correlation between positions
   portfolio_risk_limit: 0.15      # 15% portfolio risk
-  
+
 # Monitoring Configuration
 monitoring:
   enabled: true
   schedule: "*/5 * * * *"  # Every 5 minutes
   position_monitoring: true
   signal_monitoring: true
-  
+
 # Logging Configuration
 logging:
   level: "INFO"
   format: "json"
   rotation: "daily"
   retention_days: 30
-  
+
 # Alert Configuration
 alerts:
   enabled: true
   telegram:
     enabled: false
-    bot_token: "${TELEGRAM_BOT_TOKEN}"
-    chat_id: "${TELEGRAM_CHAT_ID}"
+    # Credentials loaded from environment variables in code
   email:
     enabled: false
     smtp_server: "smtp.gmail.com"
     smtp_port: 587
-    username: "${EMAIL_USERNAME}"
-    password: "${EMAIL_PASSWORD}"
-    
+    # Credentials loaded from environment variables in code
+
 # Data Update Intervals (in seconds)
 data_updates:
   market_data: 300      # 5 minutes
   news_data: 1800       # 30 minutes
   fundamentals: 86400   # 24 hours
-  
-# Base Symbol Pool (for initial screening)
+
+# Base Symbol Pool
 base_symbols:
   - "AAPL"
   - "GOOGL"

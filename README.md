@@ -176,19 +176,61 @@ screening:
 
 ### 5. Broker Configuration
 
-AutoTrader Pro supports modular broker configuration. The system uses a layered configuration approach:
+AutoTrader Pro supports multiple brokers with a simple, modular configuration system. **You only use one broker at a time**, but switching is easy.
 
-1. **Base Configuration**: Common settings in `src/brokers/base/config/base_config.yaml`
-2. **Broker-Specific Configuration**: Alpaca settings in `src/brokers/alpaca/config/alpaca_config.yaml`
-3. **Main Configuration**: Override settings in `config.yaml`
+#### Quick Setup
 
-To add a new broker, create the directory structure:
+1. **Choose Your Broker**
+   ```bash
+   # Set in your .env file
+   ACTIVE_BROKER=alpaca  # or: interactive_brokers, demo_broker
+   ```
+
+2. **Add Your Credentials**
+   ```bash
+   # For Alpaca
+   ALPACA_API_KEY=your_api_key
+   ALPACA_SECRET_KEY=your_secret_key
+   
+   # For Interactive Brokers
+   IB_API_KEY=your_ib_key
+   IB_SECRET_KEY=your_ib_secret
+   ```
+
+3. **Enable in Config**
+   ```yaml
+   # config.yaml
+   brokers:
+     alpaca:
+       enabled: true  # Enable your chosen broker
+   ```
+
+#### Broker Management CLI
+
+Use the built-in CLI tool for easy broker management:
+
+```bash
+# Check current status
+python scripts/broker_cli.py status
+
+# Switch brokers instantly
+python scripts/broker_cli.py set demo_broker
+python scripts/broker_cli.py set alpaca
+
+# List available brokers
+python scripts/broker_cli.py list
+
+# Show environment template
+python scripts/broker_cli.py env
 ```
-src/brokers/new_broker/
-├── config/new_broker_config.yaml
-├── __init__.py
-└── adapter.py
-```
+
+#### Supported Brokers
+
+- **Alpaca** - Commission-free trading with excellent API
+- **Interactive Brokers** - Professional trading platform
+- **Demo Broker** - Testing and development (no real money)
+
+See [Broker Configuration Guide](docs/BROKER_CONFIGURATION.md) for detailed setup instructions.
 
 ---
 

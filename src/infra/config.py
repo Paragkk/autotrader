@@ -1,15 +1,18 @@
 """
-Config Loader with pathlib support for uv-managed projects
-Supports broker-specific configuration loading
+Config Loader for Consolidated Configuration
+===========================================
+Configuration loader for the consolidated configuration structure.
 """
 
 import os
 import yaml
 from pathlib import Path
 from typing import Dict, Any, Union, List
-import re
+import logging
 
 from .path_utils import get_project_root
+
+logger = logging.getLogger(__name__)
 
 
 def resolve_config_path(config_path: Union[str, Path, None] = None) -> Path:
@@ -23,7 +26,7 @@ def resolve_config_path(config_path: Union[str, Path, None] = None) -> Path:
         Resolved Path object
     """
     if config_path is None:
-        config_path = "main_config.yaml"
+        config_path = "config.yaml"
 
     config_path = Path(config_path)
 
@@ -47,342 +50,259 @@ def resolve_config_path(config_path: Union[str, Path, None] = None) -> Path:
     return full_path
 
 
-def load_broker_config(broker_name: str) -> Dict[str, Any]:
+def load_config(config_path: Union[str, Path, None] = None) -> Dict[str, Any]:
     """
-    Load broker-specific configuration file.
+    Load configuration from the consolidated YAML file with environment variable overrides.
+
+    Args:
+        config_path: Path to config file (relative to project root or absolute)
+
+    Returns:
+        Dictionary containing configuration data
+
+    Raises:
+        FileNotFoundError: If config file doesn't exist
+        yaml.YAMLError: If config file is invalid YAML
+        ValueError: If no broker configuration is found or no brokers are enabled
+    """
+    resolved_path = resolve_config_path(config_path)
+
+    if not resolved_path.exists():
+        raise FileNotFoundError(f"Configuration file not found: {resolved_path}")
+
+    try:
+        with resolved_path.open("r", encoding="utf-8") as f:
+            config_data = yaml.safe_load(f) or {}
+    except yaml.YAMLError as e:
+        raise yaml.YAMLError(f"Invalid YAML in configuration file {resolved_path}: {e}")
+
+    # Validate that we have broker configuration
+    if "brokers" not in config_data:
+        raise ValueError("No 'brokers' section found in configuration")
+
+    # Validate that at least one broker is enabled
+    brokers_config = config_data["brokers"]
+    enabled_brokers = []
+    for broker_name, broker_config in brokers_config.items():
+        if isinstance(broker_config, dict) and broker_config.get("enabled", False):
+            enabled_brokers.append(broker_name)
+
+    if not enabled_brokers:
+        raise ValueError(
+            "No enabled brokers found in configuration. "
+            "At least one broker must be enabled to use the trading system."
+        )
+
+    logger.info(f"✅ Configuration loaded from {resolved_path}")
+    return config_data
+
+
+def get_broker_config(
+    broker_name: str, config_data: Dict[str, Any] = None
+) -> Dict[str, Any]:
+    """
+    Get configuration for a specific broker.
 
     Args:
         broker_name: Name of the broker (e.g., "alpaca")
+        config_data: Pre-loaded configuration data (optional)
 
     Returns:
         Dictionary containing broker-specific configuration
 
     Raises:
-        FileNotFoundError: If broker config file doesn't exist
-        yaml.YAMLError: If config file is invalid YAML
+        ValueError: If broker not found in configuration
     """
-    project_root = get_project_root()
-    broker_config_path = project_root / "src" / "brokers" / broker_name / "config.yaml"
+    if config_data is None:
+        config_data = load_config()
 
-    if not broker_config_path.exists():
-        raise FileNotFoundError(f"Broker config file not found: {broker_config_path}")
+    brokers_config = config_data.get("brokers", {})
 
-    try:
-        with broker_config_path.open("r", encoding="utf-8") as f:
-            return yaml.safe_load(f) or {}
-    except yaml.YAMLError as e:
-        raise yaml.YAMLError(
-            f"Invalid YAML in broker config file {broker_config_path}: {e}"
+    if broker_name not in brokers_config:
+        available_brokers = [k for k in brokers_config.keys() if k != "default"]
+        raise ValueError(
+            f"Broker '{broker_name}' not found in configuration. "
+            f"Available brokers: {available_brokers}"
         )
 
+    broker_config = brokers_config[broker_name].copy()
+    broker_config["broker_name"] = broker_name
 
-def load_base_config() -> Dict[str, Any]:
+    # Load environment variables directly based on broker type
+    if broker_name == "alpaca":
+        broker_config["api_key"] = os.getenv("ALPACA_API_KEY")
+        broker_config["secret_key"] = os.getenv("ALPACA_SECRET_KEY")
+    elif broker_name == "interactive_brokers":
+        broker_config["api_key"] = os.getenv("IB_API_KEY")
+        broker_config["secret_key"] = os.getenv("IB_SECRET_KEY")
+
+    return broker_config
+
+
+def get_active_brokers(config_data: Dict[str, Any] = None) -> List[str]:
     """
-    Load base configuration file.
-
-    Returns:
-        Dictionary containing base configuration
-
-    Raises:
-        FileNotFoundError: If base config file doesn't exist
-        yaml.YAMLError: If config file is invalid YAML
-    """
-    project_root = get_project_root()
-    base_config_path = (
-        project_root / "src" / "brokers" / "base" / "config" / "base_config.yaml"
-    )
-
-    if not base_config_path.exists():
-        raise FileNotFoundError(f"Base config file not found: {base_config_path}")
-
-    try:
-        with base_config_path.open("r", encoding="utf-8") as f:
-            return yaml.safe_load(f) or {}
-    except yaml.YAMLError as e:
-        raise yaml.YAMLError(
-            f"Invalid YAML in base config file {base_config_path}: {e}"
-        )
-
-
-def merge_configs(
-    base_config: Dict[str, Any],
-    broker_config: Dict[str, Any],
-    main_config: Dict[str, Any],
-) -> Dict[str, Any]:
-    """
-    Merge configuration dictionaries with proper precedence.
+    Get list of enabled brokers.
 
     Args:
-        base_config: Base configuration (lowest priority)
-        broker_config: Broker-specific configuration (medium priority)
-        main_config: Main configuration (highest priority)
+        config_data: Pre-loaded configuration data (optional)
 
     Returns:
-        Merged configuration dictionary
+        List of broker names that are enabled
     """
-    merged = {}
+    if config_data is None:
+        config_data = load_config()
 
-    # Start with base config
-    merged.update(base_config)
+    brokers_config = config_data.get("brokers", {})
+    active_brokers = []
 
-    # Override with broker config
-    merged.update(broker_config)
+    for broker_name, broker_config in brokers_config.items():
+        if isinstance(broker_config, dict):
+            if broker_config.get("enabled", False):
+                active_brokers.append(broker_name)
 
-    # Override with main config (excluding broker selection)
-    main_overrides = {
-        k: v for k, v in main_config.items() if k not in ["broker", "environment"]
-    }
-    merged.update(main_overrides)
-
-    # Keep broker and environment from main config
-    merged["broker"] = main_config.get("broker", "alpaca")
-    merged["environment"] = main_config.get("environment", "development")
-
-    return merged
+    return active_brokers
 
 
-def load_config(config_path: Union[str, Path, None] = None) -> Dict[str, Any]:
+def get_alert_config(config_data: Dict[str, Any] = None) -> Dict[str, Any]:
     """
-    Load configuration from YAML files with broker-specific support and environment variable overrides.
-
-    Loading order (later configs override earlier ones):
-    1. Base configuration (src/brokers/base/config/base_config.yaml)
-    2. Broker-specific configuration (src/brokers/{broker}/config.yaml)
-    3. Main configuration file (main_config.yaml by default)
-    4. Environment variable overrides
-
-    Broker selection priority:
-    1. TRADING_BROKER environment variable
-    2. broker field in main config file
-    3. Default to 'alpaca'
+    Get alert configuration with environment variables loaded.
 
     Args:
-        config_path: Path to main config file (relative to project root or absolute)
+        config_data: Pre-loaded configuration data (optional)
 
     Returns:
-        Dictionary containing merged configuration data
+        Dictionary containing alert configuration with credentials
+    """
+    if config_data is None:
+        config_data = load_config()
+
+    alert_config = config_data.get("alerts", {}).copy()
+
+    # Load Telegram credentials from environment
+    if "telegram" in alert_config:
+        telegram_config = alert_config["telegram"]
+        telegram_config["bot_token"] = os.getenv("TELEGRAM_BOT_TOKEN")
+        telegram_config["chat_id"] = os.getenv("TELEGRAM_CHAT_ID")
+
+    # Load Email credentials from environment
+    if "email" in alert_config:
+        email_config = alert_config["email"]
+        email_config["username"] = os.getenv("EMAIL_USERNAME")
+        email_config["password"] = os.getenv("EMAIL_PASSWORD")
+
+    return alert_config
+
+
+def get_database_config(config_data: Dict[str, Any] = None) -> Dict[str, Any]:
+    """
+    Get database configuration with environment variable override.
+
+    Args:
+        config_data: Pre-loaded configuration data (optional)
+
+    Returns:
+        Dictionary containing database configuration
+    """
+    if config_data is None:
+        config_data = load_config()
+
+    db_config = config_data.get("database", {}).copy()
+
+    # Override with environment variable if provided
+    env_db_url = os.getenv("DATABASE_URL")
+    if env_db_url:
+        db_config["url"] = env_db_url
+
+    return db_config
+
+
+def get_first_active_broker(config_data: Dict[str, Any] = None) -> str:
+    """
+    Get the first enabled broker.
+
+    This is a utility function for cases where you need a broker but don't
+    care which specific one. It's recommended to explicitly specify brokers
+    instead of using this function.
+
+    Args:
+        config_data: Pre-loaded configuration data (optional)
+
+    Returns:
+        Name of the first enabled broker
 
     Raises:
-        FileNotFoundError: If config file doesn't exist
-        yaml.YAMLError: If config file is invalid YAML
+        ValueError: If no enabled brokers are found
     """
-    # Get broker name from environment variable first
-    broker_name = os.getenv("TRADING_BROKER")
-
-    # If no environment variable, try to load from main config
-    if not broker_name:
-        try:
-            resolved_path = resolve_config_path(config_path)
-            if resolved_path.exists():
-                with resolved_path.open("r", encoding="utf-8") as f:
-                    main_config = yaml.safe_load(f) or {}
-                # Handle both flat and nested broker configuration
-                if isinstance(main_config.get("broker"), dict):
-                    broker_name = main_config["broker"].get("name", "alpaca")
-                else:
-                    broker_name = main_config.get("broker", "alpaca")
-            else:
-                # If main config doesn't exist, use default
-                broker_name = "alpaca"
-                main_config = {}
-        except (FileNotFoundError, yaml.YAMLError):
-            broker_name = "alpaca"
-            main_config = {}
-    else:
-        # If broker comes from env var, still try to load main config for other settings
-        try:
-            resolved_path = resolve_config_path(config_path)
-            if resolved_path.exists():
-                with resolved_path.open("r", encoding="utf-8") as f:
-                    main_config = yaml.safe_load(f) or {}
-            else:
-                main_config = {}
-        except (FileNotFoundError, yaml.YAMLError):
-            main_config = {}
-
-    # Load base configuration
-    try:
-        base_config = load_base_config()
-    except FileNotFoundError:
-        # If base config doesn't exist, use empty dict
-        base_config = {}
-
-    # Load broker-specific configuration
-    try:
-        broker_config = load_broker_config(broker_name)
-    except FileNotFoundError:
-        # If broker config doesn't exist, use empty dict
-        broker_config = {}
-
-    # Merge all configurations
-    config_data = merge_configs(base_config, broker_config, main_config)
-
-    # Override broker name if it came from environment
-    # Preserve broker configuration structure
-    if "broker" not in config_data:
-        config_data["broker"] = {}
-    if isinstance(config_data["broker"], dict):
-        config_data["broker"]["name"] = broker_name
-    else:
-        config_data["broker"] = {"name": broker_name}
-
-    # Environment variables take precedence over config file values
-    # This is useful for secrets and deployment-specific overrides
-    env_overrides = {
-        key.lower(): value
-        for key, value in os.environ.items()
-        if key.startswith(("TRADING_", "ALPACA_", "DATABASE_"))
-    }
-
-    # Apply environment overrides
-    for env_key, env_value in env_overrides.items():
-        # Convert environment variable names to config keys
-        # e.g., TRADING_MAX_POSITIONS -> max_positions
-        config_key = (
-            env_key.replace("trading_", "")
-            .replace("alpaca_", "")
-            .replace("database_", "")
+    active_brokers = get_active_brokers(config_data)
+    if not active_brokers:
+        raise ValueError(
+            "No enabled brokers found. Please enable at least one broker in the configuration."
         )
+    return active_brokers[0]
 
-        # Skip the broker key as it's handled separately
-        if config_key == "broker":
-            continue
 
-        # Try to convert to appropriate type
-        if env_value.lower() in ("true", "false"):
-            config_data[config_key] = env_value.lower() == "true"
-        elif env_value.replace(".", "").replace("-", "").isdigit():
-            try:
-                config_data[config_key] = (
-                    float(env_value) if "." in env_value else int(env_value)
-                )
-            except ValueError:
-                config_data[config_key] = env_value
+def get_active_broker(config_data: Dict[str, Any] = None) -> str:
+    """
+    Get the currently active broker based on environment variable or first enabled broker.
+
+    Args:
+        config_data: Pre-loaded configuration data (optional)
+
+    Returns:
+        Name of the active broker
+
+    Raises:
+        ValueError: If no brokers are available or enabled
+    """
+    if config_data is None:
+        config_data = load_config()
+
+    # Check environment variables (highest priority)
+    active_broker = os.getenv("ACTIVE_BROKER", os.getenv("TRADING_BROKER"))
+
+    brokers_config = config_data.get("brokers", {})
+    available_brokers = list(brokers_config.keys())
+
+    if active_broker:
+        if active_broker in available_brokers:
+            # If environment specifies a broker, use it (even if disabled in config)
+            # This allows users to override config via environment
+            return active_broker
         else:
-            config_data[config_key] = env_value
+            logger.warning(
+                f"Environment broker '{active_broker}' not found in config. Using default."
+            )
 
-    # Substitute environment variables in config data
-    config_data = substitute_env_vars(config_data)
+    # Fallback to first enabled broker in config
+    for broker_name, broker_config in brokers_config.items():
+        if isinstance(broker_config, dict) and broker_config.get("enabled", False):
+            return broker_name
 
-    return config_data
+    # Fallback to first available broker
+    if available_brokers:
+        return available_brokers[0]
+
+    raise ValueError("No brokers available in configuration")
 
 
-def substitute_env_vars(config_data: Dict[str, Any]) -> Dict[str, Any]:
+def is_broker_enabled(broker_name: str, config_data: Dict[str, Any] = None) -> bool:
     """
-    Recursively substitute environment variables in config data.
-
-    Replaces ${VAR_NAME} with the value from environment variables.
-    """
-    if isinstance(config_data, dict):
-        result = {}
-        for key, value in config_data.items():
-            result[key] = substitute_env_vars(value)
-        return result
-    elif isinstance(config_data, list):
-        return [substitute_env_vars(item) for item in config_data]
-    elif isinstance(config_data, str):
-        # Replace ${VAR_NAME} with environment variable value
-        pattern = r"\$\{([^}]+)\}"
-
-        def replace_var(match):
-            var_name = match.group(1)
-            return os.getenv(var_name, match.group(0))  # Return original if not found
-
-        return re.sub(pattern, replace_var, config_data)
-    else:
-        return config_data
-
-
-def get_available_brokers() -> List[str]:
-    """
-    Get list of available brokers based on existing config files.
-
-    Returns:
-        List of broker names that have config files
-    """
-    project_root = get_project_root()
-    brokers_dir = project_root / "src" / "brokers"
-
-    available_brokers = []
-
-    for item in brokers_dir.iterdir():
-        if item.is_dir() and item.name != "base" and item.name != "__pycache__":
-            config_file = item / "config.yaml"
-            if config_file.exists():
-                available_brokers.append(item.name)
-
-    return available_brokers
-
-
-def validate_broker_config(broker_name: str) -> bool:
-    """
-    Validate that a broker configuration exists and is valid.
+    Check if a broker is enabled in configuration.
 
     Args:
-        broker_name: Name of the broker to validate
+        broker_name: Name of the broker to check
+        config_data: Pre-loaded configuration data (optional)
 
     Returns:
-        True if broker config is valid, False otherwise
+        True if broker is enabled, False otherwise
     """
-    try:
-        load_broker_config(broker_name)
-        return True
-    except (FileNotFoundError, yaml.YAMLError):
+    if config_data is None:
+        config_data = load_config()
+
+    brokers_config = config_data.get("brokers", {})
+
+    if broker_name not in brokers_config:
         return False
 
-
-def create_broker_config_template(broker_name: str) -> Path:
-    """
-    Create a configuration template for a new broker.
-
-    Args:
-        broker_name: Name of the broker
-
-    Returns:
-        Path to the created config file
-    """
-    project_root = get_project_root()
-    broker_dir = project_root / "src" / "brokers" / broker_name
-    broker_dir.mkdir(parents=True, exist_ok=True)
-
-    config_file = broker_dir / "config.yaml"
-
-    template_content = f"""# {broker_name.title()} Broker Configuration
-# {"=" * (len(broker_name) + 24)}
-
-# {broker_name.title()} API Configuration
-# Add your broker-specific API settings here
-
-# Risk Management ({broker_name.title()}-specific)
-max_positions: 10
-max_daily_loss: 1000.0
-position_size_percent: 0.02  # 2% of portfolio per position
-stop_loss_percent: 0.02      # 2% stop loss
-take_profit_percent: 0.06    # 6% take profit
-
-# Add other {broker_name.title()}-specific settings here
-"""
-
-    with config_file.open("w", encoding="utf-8") as f:
-        f.write(template_content)
-
-    return config_file
-
-
-class Config:
-    """
-    Configuration class for backward compatibility.
-    Consider using load_config() function directly for new code.
-    """
-
-    def __init__(self, config_path: Union[str, Path, None] = None):
-        self.config_path = resolve_config_path(config_path)
-        self.config = load_config(config_path)
-
-    def get(self, key: str, default: Any = None) -> Any:
-        """Get configuration value with optional default."""
-        return self.config.get(key, default)
-
-    def reload(self) -> None:
-        """Reload configuration from file."""
-        self.config = load_config(self.config_path)
+    broker_config = brokers_config[broker_name]
+    return isinstance(broker_config, dict) and broker_config.get("enabled", False)

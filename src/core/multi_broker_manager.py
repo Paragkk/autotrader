@@ -10,7 +10,12 @@ from dataclasses import dataclass
 
 from src.brokers.base import BrokerAdapter, get_broker_adapter
 from src.db.models import BrokerAccount, Order, Position
-from src.db.repository import TradingRepository
+
+# Import for type hinting
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from src.db.repository import BrokerRepository
 
 logger = logging.getLogger(__name__)
 
@@ -30,11 +35,10 @@ class MultiBrokerManager:
     Manages multiple brokers using a unified database approach
     """
 
-    def __init__(self, config: Dict[str, Any], repository: TradingRepository):
+    def __init__(self, config: Dict[str, Any], repository: "BrokerRepository"):
         self.config = config
         self.repository = repository
         self.brokers: Dict[str, BrokerAllocation] = {}
-        self.default_broker = config.get("default_broker", "alpaca")
 
         # Initialize brokers
         self._initialize_brokers()
@@ -197,25 +201,30 @@ class MultiBrokerManager:
         """
         Select optimal broker based on allocation, availability, and capacity
         """
-        # Simple implementation - use default broker
+        # Enhanced implementation - select based on allocation and availability
         # You can enhance this with more sophisticated logic:
         # - Check broker allocations
         # - Check available buying power
         # - Check broker-specific symbol availability
         # - Load balancing based on current exposure
 
-        if (
-            self.default_broker in self.brokers
-            and self.brokers[self.default_broker].enabled
-        ):
-            return self.default_broker
-
-        # Fallback to first available broker
+        # Get all available brokers
+        available_brokers = []
         for broker_name, allocation in self.brokers.items():
             if allocation.enabled:
-                return broker_name
+                available_brokers.append(broker_name)
 
-        raise RuntimeError("No brokers available")
+        if not available_brokers:
+            raise RuntimeError(
+                "No brokers available. Please ensure at least one broker is enabled."
+            )
+
+        # For now, return the first available broker
+        # TODO: Implement more sophisticated broker selection logic based on:
+        # - Available capital allocation
+        # - Current position exposure
+        # - Broker-specific fees and capabilities
+        return available_brokers[0]
 
     async def get_consolidated_positions(self) -> List[Dict[str, Any]]:
         """Get consolidated positions across all brokers"""
@@ -291,3 +300,22 @@ class MultiBrokerManager:
                 logger.info(f"Disconnected from {broker_name}")
             except Exception as e:
                 logger.error(f"Error disconnecting from {broker_name}: {e}")
+
+    def get_primary_broker(self) -> Optional[BrokerAdapter]:
+        """
+        Get the primary broker adapter (highest allocation enabled broker)
+        Returns None if no brokers are available
+        """
+        if not self.brokers:
+            return None
+
+        # Find the broker with the highest allocation percentage
+        primary_broker = max(
+            self.brokers.values(), key=lambda allocation: allocation.allocation_percent
+        )
+
+        return primary_broker.adapter
+
+    def get_enabled_brokers(self) -> List[str]:
+        """Get list of enabled broker names"""
+        return list(self.brokers.keys())
