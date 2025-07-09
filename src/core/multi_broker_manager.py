@@ -26,7 +26,6 @@ class BrokerAllocation:
 
     broker_name: str
     allocation_percent: float
-    enabled: bool
     adapter: BrokerAdapter
 
 
@@ -48,10 +47,6 @@ class MultiBrokerManager:
         brokers_config = self.config.get("brokers", {})
 
         for broker_name, broker_config in brokers_config.items():
-            if not broker_config.get("enabled", False):
-                logger.info(f"Broker {broker_name} is disabled, skipping...")
-                continue
-
             try:
                 # Create broker adapter
                 adapter = get_broker_adapter(broker_name, broker_config)
@@ -60,7 +55,6 @@ class MultiBrokerManager:
                 allocation = BrokerAllocation(
                     broker_name=broker_name,
                     allocation_percent=broker_config.get("allocation_percent", 0.0),
-                    enabled=True,
                     adapter=adapter,
                 )
 
@@ -73,7 +67,7 @@ class MultiBrokerManager:
                 logger.error(f"❌ Failed to initialize broker {broker_name}: {e}")
 
     async def connect_all_brokers(self) -> Dict[str, bool]:
-        """Connect to all enabled brokers"""
+        """Connect to all configured brokers"""
         results = {}
 
         for broker_name, allocation in self.brokers.items():
@@ -211,12 +205,11 @@ class MultiBrokerManager:
         # Get all available brokers
         available_brokers = []
         for broker_name, allocation in self.brokers.items():
-            if allocation.enabled:
-                available_brokers.append(broker_name)
+            available_brokers.append(broker_name)
 
         if not available_brokers:
             raise RuntimeError(
-                "No brokers available. Please ensure at least one broker is enabled."
+                "No brokers available. Please configure at least one broker."
             )
 
         # For now, return the first available broker
@@ -303,7 +296,7 @@ class MultiBrokerManager:
 
     def get_primary_broker(self) -> Optional[BrokerAdapter]:
         """
-        Get the primary broker adapter (highest allocation enabled broker)
+        Get the primary broker adapter (highest allocation broker)
         Returns None if no brokers are available
         """
         if not self.brokers:
@@ -316,6 +309,6 @@ class MultiBrokerManager:
 
         return primary_broker.adapter
 
-    def get_enabled_brokers(self) -> List[str]:
-        """Get list of enabled broker names"""
+    def get_configured_brokers(self) -> List[str]:
+        """Get list of configured broker names"""
         return list(self.brokers.keys())

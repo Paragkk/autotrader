@@ -17,12 +17,10 @@ database:
   echo: false
 
 # Multi-Broker Configuration
-# Note: Only one broker should be enabled at a time
 # Use ACTIVE_BROKER environment variable to select which broker to use
 brokers:
   # Alpaca Configuration
   alpaca:
-    enabled: true
     # API credentials loaded from environment variables (ALPACA_API_KEY, ALPACA_SECRET_KEY)
     base_url: "https://paper-api.alpaca.markets"
     paper_trading: true
@@ -38,7 +36,6 @@ brokers:
     
   # Interactive Brokers Configuration
   interactive_brokers:
-    enabled: false
     # API credentials loaded from environment variables (IB_API_KEY, IB_SECRET_KEY)
     base_url: "https://api.interactivebrokers.com"
     paper_trading: true
@@ -47,7 +44,6 @@ brokers:
     
   # Demo Broker Configuration (for testing)
   demo_broker:
-    enabled: false
     # Credentials loaded from environment variables (DEMO_API_KEY, DEMO_SECRET_KEY)
     base_url: "https://demo.api.com"
     paper_trading: true

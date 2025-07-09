@@ -80,17 +80,12 @@ def load_config(config_path: Union[str, Path, None] = None) -> Dict[str, Any]:
     if "brokers" not in config_data:
         raise ValueError("No 'brokers' section found in configuration")
 
-    # Validate that at least one broker is enabled
+    # Validate that we have broker configuration
     brokers_config = config_data["brokers"]
-    enabled_brokers = []
-    for broker_name, broker_config in brokers_config.items():
-        if isinstance(broker_config, dict) and broker_config.get("enabled", False):
-            enabled_brokers.append(broker_name)
-
-    if not enabled_brokers:
+    if not brokers_config:
         raise ValueError(
-            "No enabled brokers found in configuration. "
-            "At least one broker must be enabled to use the trading system."
+            "No brokers found in configuration. "
+            "At least one broker must be configured to use the trading system."
         )
 
     logger.info(f"✅ Configuration loaded from {resolved_path}")
@@ -141,26 +136,25 @@ def get_broker_config(
 
 def get_active_brokers(config_data: Dict[str, Any] = None) -> List[str]:
     """
-    Get list of enabled brokers.
+    Get list of available brokers.
 
     Args:
         config_data: Pre-loaded configuration data (optional)
 
     Returns:
-        List of broker names that are enabled
+        List of broker names that are available
     """
     if config_data is None:
         config_data = load_config()
 
     brokers_config = config_data.get("brokers", {})
-    active_brokers = []
+    available_brokers = []
 
     for broker_name, broker_config in brokers_config.items():
         if isinstance(broker_config, dict):
-            if broker_config.get("enabled", False):
-                active_brokers.append(broker_name)
+            available_brokers.append(broker_name)
 
-    return active_brokers
+    return available_brokers
 
 
 def get_alert_config(config_data: Dict[str, Any] = None) -> Dict[str, Any]:
@@ -218,7 +212,7 @@ def get_database_config(config_data: Dict[str, Any] = None) -> Dict[str, Any]:
 
 def get_first_active_broker(config_data: Dict[str, Any] = None) -> str:
     """
-    Get the first enabled broker.
+    Get the first available broker.
 
     This is a utility function for cases where you need a broker but don't
     care which specific one. It's recommended to explicitly specify brokers
@@ -228,22 +222,22 @@ def get_first_active_broker(config_data: Dict[str, Any] = None) -> str:
         config_data: Pre-loaded configuration data (optional)
 
     Returns:
-        Name of the first enabled broker
+        Name of the first available broker
 
     Raises:
-        ValueError: If no enabled brokers are found
+        ValueError: If no brokers are found
     """
     active_brokers = get_active_brokers(config_data)
     if not active_brokers:
         raise ValueError(
-            "No enabled brokers found. Please enable at least one broker in the configuration."
+            "No brokers found. Please configure at least one broker in the configuration."
         )
     return active_brokers[0]
 
 
 def get_active_broker(config_data: Dict[str, Any] = None) -> str:
     """
-    Get the currently active broker based on environment variable or first enabled broker.
+    Get the currently active broker based on environment variable or first configured broker.
 
     Args:
         config_data: Pre-loaded configuration data (optional)
@@ -273,28 +267,24 @@ def get_active_broker(config_data: Dict[str, Any] = None) -> str:
                 f"Environment broker '{active_broker}' not found in config. Using default."
             )
 
-    # Fallback to first enabled broker in config
-    for broker_name, broker_config in brokers_config.items():
-        if isinstance(broker_config, dict) and broker_config.get("enabled", False):
-            return broker_name
-
-    # Fallback to first available broker
+    # Fallback to first available broker in config
+    available_brokers = list(brokers_config.keys())
     if available_brokers:
         return available_brokers[0]
 
     raise ValueError("No brokers available in configuration")
 
 
-def is_broker_enabled(broker_name: str, config_data: Dict[str, Any] = None) -> bool:
+def is_broker_configured(broker_name: str, config_data: Dict[str, Any] = None) -> bool:
     """
-    Check if a broker is enabled in configuration.
+    Check if a broker is configured.
 
     Args:
         broker_name: Name of the broker to check
         config_data: Pre-loaded configuration data (optional)
 
     Returns:
-        True if broker is enabled, False otherwise
+        True if broker is configured, False otherwise
     """
     if config_data is None:
         config_data = load_config()
@@ -305,4 +295,4 @@ def is_broker_enabled(broker_name: str, config_data: Dict[str, Any] = None) -> b
         return False
 
     broker_config = brokers_config[broker_name]
-    return isinstance(broker_config, dict) and broker_config.get("enabled", False)
+    return isinstance(broker_config, dict)

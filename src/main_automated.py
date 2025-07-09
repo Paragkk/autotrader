@@ -114,7 +114,7 @@ class AutomatedTradingSystem:
         # Initialize single broker adapter - use first active broker from config
         from infra.config import get_first_active_broker, get_broker_config
 
-        # Get the first active/enabled broker and its configuration
+        # Get the first active/configured broker and its configuration
         active_broker = get_first_active_broker(config.config)
         broker_config = get_broker_config(active_broker, config.config)
 

@@ -197,12 +197,11 @@ AutoTrader Pro supports multiple brokers with a simple, modular configuration sy
    IB_SECRET_KEY=your_ib_secret
    ```
 
-3. **Enable in Config**
-   ```yaml
-   # config.yaml
-   brokers:
-     alpaca:
-       enabled: true  # Enable your chosen broker
+3. **Set Active Broker**
+   ```bash
+   # config.yaml - all configured brokers are available
+   # Use environment variable to choose which one is active
+   ACTIVE_BROKER=alpaca  # or: interactive_brokers, demo_broker
    ```
 
 #### Broker Management CLI
