@@ -125,9 +125,15 @@ def get_broker_config(
 
     # Load environment variables directly based on broker type
     if broker_name == "alpaca":
+        broker_config["alpaca_api_key"] = os.getenv("ALPACA_API_KEY")
+        broker_config["alpaca_secret_key"] = os.getenv("ALPACA_SECRET_KEY")
+        # Also set generic keys for adapter compatibility
         broker_config["api_key"] = os.getenv("ALPACA_API_KEY")
         broker_config["secret_key"] = os.getenv("ALPACA_SECRET_KEY")
     elif broker_name == "interactive_brokers":
+        broker_config["ib_api_key"] = os.getenv("IB_API_KEY")
+        broker_config["ib_secret_key"] = os.getenv("IB_SECRET_KEY")
+        # Also set generic keys for adapter compatibility
         broker_config["api_key"] = os.getenv("IB_API_KEY")
         broker_config["secret_key"] = os.getenv("IB_SECRET_KEY")
 
