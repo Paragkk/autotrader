@@ -1,20 +1,18 @@
-# Alpaca Broker Configuration
-# This file contains broker-specific configuration settings for Alpaca
+# Demo Broker Configuration
+# This file contains broker-specific configuration settings for Demo Broker
 
-broker_name: "alpaca"
-display_name: "Alpaca Markets"
-broker_type: "online"
+broker_name: "demo_broker"
+display_name: "Demo Broker"
+broker_type: "demo"
 
 # API Configuration
 api:
-  paper_base_url: "https://paper-api.alpaca.markets"
-  live_base_url: "https://api.alpaca.markets"
-  data_base_url: "https://data.alpaca.markets"
+  base_url: "https://demo-api.example.com"
   
 # Trading Configuration
 trading:
   supports_fractional_shares: true
-  supports_crypto: true
+  supports_crypto: false
   supports_options: false
   supports_futures: false
   
@@ -24,34 +22,30 @@ trading:
     - "limit"
     - "stop"
     - "stop_limit"
-    - "trailing_stop"
   
   # Time in force options
   time_in_force_options:
     - "day"
     - "gtc"  # Good Till Canceled
-    - "ioc"  # Immediate or Cancel
-    - "fok"  # Fill or Kill
 
 # Data Configuration
 data:
-  real_time_data: true
+  real_time_data: false
   historical_data: true
-  news_data: true
+  news_data: false
   supports_level2: false
   
 # Rate Limits (requests per minute)
 rate_limits:
-  orders: 200
-  account_updates: 200
-  market_data: 200
+  orders: 100
+  account_updates: 100
+  market_data: 100
   
 # Required Configuration Fields
 # These will be validated when creating the broker adapter
 required_config:
   - "api_key"
   - "secret_key"
-  - "base_url"
 
 # Default Configuration Values
 defaults:

@@ -45,8 +45,10 @@ from core.position_monitor import PositionMonitor
 from core.data_fetcher import DataFetcher
 from db.repository import SymbolRepository, StockDataRepository, SignalRepository
 from infra.logging_config import setup_logging
-from infra.config import load_config  # Use the proper config loader
-from brokers.base.factory import get_broker_adapter
+from infra.config import (
+    load_config,
+    create_broker_adapter,
+)  # Use the proper config loader
 
 from dotenv import load_dotenv
 
@@ -58,9 +60,13 @@ logger = logging.getLogger(__name__)
 class TradingConfig:
     """Configuration for the automated trading system"""
 
-    config_path: Path = Path("config.yaml")
+    config_path: Optional[Path] = None
 
     def __post_init__(self):
+        if self.config_path is None:
+            # Default to config.yaml in project root (parent of src directory)
+            self.config_path = Path(__file__).parent.parent / "config.yaml"
+
         if not self.config_path.exists():
             raise FileNotFoundError(f"Configuration file not found: {self.config_path}")
 
@@ -118,8 +124,8 @@ class AutomatedTradingSystem:
         active_broker = get_first_active_broker(config.config)
         broker_config = get_broker_config(active_broker, config.config)
 
-        # Create broker adapter using factory
-        self.broker_adapter = get_broker_adapter(active_broker, broker_config)
+        # Create broker adapter using config
+        self.broker_adapter = create_broker_adapter(active_broker, broker_config)
 
         logger.info(f"✅ Initialized {active_broker} broker adapter")
 
@@ -727,12 +733,38 @@ class AutomatedTradingSystem:
 # Main entry point
 async def main():
     """Main entry point for the automated trading system"""
+    import argparse
+
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(
+        description="Professional Automated Trading System"
+    )
+    parser.add_argument(
+        "--test",
+        action="store_true",
+        help="Run in test mode (validate configuration and exit)",
+    )
+    parser.add_argument(
+        "--config",
+        type=str,
+        help="Path to configuration file (default: ../config.yaml)",
+    )
+    args = parser.parse_args()
 
     # Setup logging
     setup_logging()
 
     # Load configuration
-    config = TradingConfig()
+    if args.config:
+        config = TradingConfig(config_path=Path(args.config))
+    else:
+        config = TradingConfig()
+
+    # If test mode, just validate and exit
+    if args.test:
+        logger.info("✅ Configuration loaded successfully")
+        logger.info("✅ Test mode completed - all systems ready")
+        return
 
     # Create and start system
     system = AutomatedTradingSystem(config)

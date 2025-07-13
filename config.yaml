@@ -21,7 +21,10 @@ database:
 brokers:
   # Alpaca Configuration
   alpaca:
-    # API credentials loaded from environment variables (ALPACA_API_KEY, ALPACA_SECRET_KEY)
+    # Environment variable mappings for credentials
+    env_vars:
+      api_key: "ALPACA_API_KEY"
+      secret_key: "ALPACA_SECRET_KEY"
     base_url: "https://paper-api.alpaca.markets"
     paper_trading: true
     market_data_feed: "iex"
@@ -36,7 +39,10 @@ brokers:
     
   # Interactive Brokers Configuration
   interactive_brokers:
-    # API credentials loaded from environment variables (IB_API_KEY, IB_SECRET_KEY)
+    # Environment variable mappings for credentials
+    env_vars:
+      api_key: "IB_API_KEY"
+      secret_key: "IB_SECRET_KEY"
     base_url: "https://api.interactivebrokers.com"
     paper_trading: true
     order_timeout: 120
@@ -44,7 +50,10 @@ brokers:
     
   # Demo Broker Configuration (for testing)
   demo_broker:
-    # Credentials loaded from environment variables (DEMO_API_KEY, DEMO_SECRET_KEY)
+    # Environment variable mappings for credentials
+    env_vars:
+      api_key: "DEMO_API_KEY"
+      secret_key: "DEMO_SECRET_KEY"
     base_url: "https://demo.api.com"
     paper_trading: true
 # Trading Configuration

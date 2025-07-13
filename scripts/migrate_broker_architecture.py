@@ -12,7 +12,7 @@ from typing import Dict, Any
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from src.brokers.base.factory import BrokerFactory
+from src.infra.config import create_broker_adapter, get_supported_brokers_from_code
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -68,7 +68,7 @@ def test_broker_connection(broker_name: str, config: Dict[str, Any]) -> bool:
     logger.info(f"Testing {broker_name} broker connection...")
 
     try:
-        broker = BrokerFactory.create_broker(broker_name, config)
+        broker = create_broker_adapter(broker_name, config)
 
         # Test basic operations
         if hasattr(broker, "connect"):
@@ -125,7 +125,7 @@ def validate_migration() -> bool:
 
     # Test broker factory
     try:
-        supported_brokers = BrokerFactory.get_supported_brokers()
+        supported_brokers = get_supported_brokers_from_code()
         logger.info(f"✅ Supported brokers: {supported_brokers}")
     except Exception as e:
         logger.error(f"❌ Broker factory test failed: {e}")

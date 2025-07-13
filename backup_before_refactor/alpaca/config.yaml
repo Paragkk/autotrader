@@ -49,8 +49,8 @@ rate_limits:
 # Required Configuration Fields
 # These will be validated when creating the broker adapter
 required_config:
-  - "api_key"
-  - "secret_key"
+  - "alpaca_api_key"
+  - "alpaca_secret_key"
   - "base_url"
 
 # Default Configuration Values

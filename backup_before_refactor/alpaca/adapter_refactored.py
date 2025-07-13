@@ -1,6 +1,6 @@
 """
-Alpaca Broker Adapter - Clean Implementation
-Uses common infrastructure and focuses only on Alpaca-specific logic
+Refactored Alpaca Broker Adapter - Simplified Implementation
+Uses common infrastructure and removes duplicated code
 """
 
 import logging
@@ -20,40 +20,34 @@ from ..base import (
     BrokerOrderError,
     BrokerDataError,
 )
-from ..common import (
-    RESTBrokerAdapter,
-    OrderValidationMixin,
-    PositionTrackingMixin,
-    BrokerConfigurationMixin,
-    OrderTypeConverter,
-)
-from ...infra.model_utils import create_dataclass_from_dict, get_field_mappings
+from ..common import RESTBrokerAdapter, OrderValidationMixin, PositionTrackingMixin
+from ...infra.model_utils import create_dataclass_from_dict
 
 logger = logging.getLogger(__name__)
 
 
 class AlpacaBrokerAdapter(
-    RESTBrokerAdapter,
-    OrderValidationMixin,
-    PositionTrackingMixin,
-    BrokerConfigurationMixin,
+    RESTBrokerAdapter, OrderValidationMixin, PositionTrackingMixin
 ):
-    """Clean Alpaca broker adapter using common infrastructure"""
+    """Simplified Alpaca broker adapter using common infrastructure"""
 
     def __init__(self, config: Dict[str, Any]):
         """Initialize Alpaca broker adapter"""
         super().__init__(config)
 
-        # Extract Alpaca-specific configuration using common utilities
-        self.api_key, self.api_secret = self.extract_broker_credentials(
-            config, "alpaca"
+        # Extract Alpaca-specific configuration
+        self.api_key = config.get("api_key") or config.get("alpaca_api_key")
+        self.api_secret = (
+            config.get("api_secret")
+            or config.get("secret_key")
+            or config.get("alpaca_secret_key")
         )
         self.paper_trading = config.get(
             "paper_trading", config.get("use_paper_trading", True)
         )
 
-        # Validate credentials using common validation
-        self.validate_api_credentials(self.api_key, self.api_secret, "alpaca")
+        # Validate credentials
+        self._validate_credentials()
 
     @property
     def broker_name(self) -> str:
@@ -97,8 +91,8 @@ class AlpacaBrokerAdapter(
                 f"Connecting to Alpaca API ({'paper' if self.paper_trading else 'live'} trading)"
             )
 
-            # Test connection by getting account info without connection check (since we're connecting)
-            account_data = await self._get_without_connection_check("account")
+            # Test connection by getting account info
+            account_data = await self._get("account")
             if account_data:
                 self._connected = True
                 logger.info(
@@ -175,15 +169,26 @@ class AlpacaBrokerAdapter(
 
     def _convert_order_type(self, order_type: OrderType) -> str:
         """Convert OrderType to Alpaca format"""
-        type_mapping = OrderTypeConverter.get_standard_order_type_mapping()
+        type_mapping = {
+            OrderType.MARKET: "market",
+            OrderType.LIMIT: "limit",
+            OrderType.STOP: "stop",
+            OrderType.STOP_LIMIT: "stop_limit",
+            OrderType.TRAILING_STOP: "trailing_stop",
+        }
         return type_mapping[order_type]
 
     def _convert_alpaca_order_to_standard(
         self, alpaca_order: Dict[str, Any]
     ) -> OrderResponse:
         """Convert Alpaca order response to standard format"""
-        # Get field mappings for Alpaca
-        field_mappings = get_field_mappings("alpaca")
+        # Field mappings for Alpaca to standard format
+        field_mappings = {
+            "id": "order_id",
+            "qty": "quantity",
+            "filled_qty": "filled_qty",
+            "filled_avg_price": "avg_fill_price",
+        }
 
         # Use common conversion utility
         return create_dataclass_from_dict(alpaca_order, OrderResponse, field_mappings)
@@ -234,8 +239,16 @@ class AlpacaBrokerAdapter(
         try:
             account_data = await self._get("account")
 
-            # Use field mappings for Alpaca to standard format
-            field_mappings = get_field_mappings("alpaca")
+            # Field mappings for Alpaca to standard format
+            field_mappings = {
+                "id": "account_id",
+                "portfolio_value": "portfolio_value",
+                "buying_power": "buying_power",
+                "cash": "cash",
+                "equity": "equity",
+                "daytrading_buying_power": "day_trading_power",
+                "pattern_day_trader": "pattern_day_trader",
+            }
 
             return create_dataclass_from_dict(account_data, AccountInfo, field_mappings)
 
@@ -262,7 +275,15 @@ class AlpacaBrokerAdapter(
         self, alpaca_position: Dict[str, Any]
     ) -> Position:
         """Convert Alpaca position to standard format"""
-        field_mappings = get_field_mappings("alpaca")
+        field_mappings = {
+            "qty": "quantity",
+            "market_value": "market_value",
+            "cost_basis": "cost_basis",
+            "unrealized_pl": "unrealized_pl",
+            "unrealized_plpc": "unrealized_pl_percent",
+            "current_price": "current_price",
+            "avg_entry_price": "entry_price",
+        }
 
         return create_dataclass_from_dict(alpaca_position, Position, field_mappings)
 
@@ -302,27 +323,6 @@ class AlpacaBrokerAdapter(
         except Exception as e:
             logger.error(f"Failed to get quote for {symbol}: {e}")
             raise BrokerDataError(f"Failed to get quote: {e}")
-
-    async def get_quotes(self, symbols: List[str]) -> Dict[str, Quote]:
-        """Get real-time quotes for multiple symbols"""
-        try:
-            quotes_dict = {}
-
-            # Alpaca supports batch quotes, but we'll implement it symbol by symbol for reliability
-            # In production, you might want to optimize this with batch requests
-            for symbol in symbols:
-                try:
-                    quote = await self.get_quote(symbol)
-                    if quote:
-                        quotes_dict[symbol] = quote
-                except Exception as e:
-                    logger.warning(f"Failed to get quote for {symbol}: {e}")
-                    continue
-
-            return quotes_dict
-        except Exception as e:
-            logger.error(f"Failed to get quotes for symbols {symbols}: {e}")
-            raise BrokerDataError(f"Failed to get quotes: {e}")
 
     async def get_bars(
         self,
@@ -382,65 +382,21 @@ class AlpacaBrokerAdapter(
             logger.error(f"Failed to check market status: {e}")
             return False
 
-    async def get_market_hours(self, date: Optional[datetime] = None) -> Dict[str, Any]:
-        """Get market hours for a specific date"""
-        try:
-            # Use current date if none provided
-            if date is None:
-                date = datetime.now()
-
-            # Format date for API request
-            date_str = date.strftime("%Y-%m-%d")
-
-            # Get calendar data for the specified date
-            # Alpaca calendar endpoint requires a date range, so we query a single day
-            params = {"start": date_str, "end": date_str}
-
-            calendar_data = await self._get("calendar", params=params)
-
-            if not calendar_data or len(calendar_data) == 0:
-                # Market is closed on this date
-                return {
-                    "date": date_str,
-                    "is_open": False,
-                    "market_open": None,
-                    "market_close": None,
-                    "timezone": "America/New_York",
-                    "reason": "Market closed",
-                }
-
-            # Extract market hours from calendar data
-            trading_day = calendar_data[0]
-
-            return {
-                "date": date_str,
-                "is_open": True,
-                "market_open": trading_day.get("open"),
-                "market_close": trading_day.get("close"),
-                "settlement_date": trading_day.get("settlement_date"),
-                "timezone": "America/New_York",
-                "broker_specific_data": trading_day,
-            }
-
-        except Exception as e:
-            logger.error(
-                f"Failed to get market hours for {date_str if date else 'today'}: {e}"
-            )
-            # Return fallback market hours for US markets
-            return {
-                "date": date.strftime("%Y-%m-%d")
-                if date
-                else datetime.now().strftime("%Y-%m-%d"),
-                "is_open": True,  # Assume open during regular hours
-                "market_open": "09:30:00",
-                "market_close": "16:00:00",
-                "timezone": "America/New_York",
-                "error": str(e),
-            }
-
     def _convert_status_to_alpaca(self, status: OrderStatus) -> str:
         """Convert standard OrderStatus to Alpaca format"""
-        status_mapping = OrderTypeConverter.get_standard_status_mapping()
-        # Reverse the mapping to get standard -> alpaca format
-        reverse_mapping = {v.lower(): k for k, v in status_mapping.items()}
-        return reverse_mapping.get(status.value.lower(), "new")
+        status_mapping = {
+            OrderStatus.NEW: "new",
+            OrderStatus.PARTIALLY_FILLED: "partially_filled",
+            OrderStatus.FILLED: "filled",
+            OrderStatus.DONE_FOR_DAY: "done_for_day",
+            OrderStatus.CANCELED: "canceled",
+            OrderStatus.EXPIRED: "expired",
+            OrderStatus.REPLACED: "replaced",
+            OrderStatus.PENDING_CANCEL: "pending_cancel",
+            OrderStatus.PENDING_REPLACE: "pending_replace",
+            OrderStatus.PENDING_REVIEW: "pending_review",
+            OrderStatus.REJECTED: "rejected",
+            OrderStatus.SUSPENDED: "suspended",
+            OrderStatus.PENDING_NEW: "pending_new",
+        }
+        return status_mapping.get(status, "new")

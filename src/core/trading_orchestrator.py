@@ -21,7 +21,7 @@ from ..db.repository import (
     SymbolRepository,
     SignalRepository,
 )
-from ..brokers.base import BrokerFactory
+from ..infra.config import create_broker_adapter
 
 logger = logging.getLogger(__name__)
 
@@ -113,8 +113,8 @@ class TradingOrchestrator:
     def _initialize_components(self):
         """Initialize all trading components"""
         try:
-            # Initialize broker using factory
-            self.broker_adapter = BrokerFactory.create_broker(
+            # Initialize broker using config
+            self.broker_adapter = create_broker_adapter(
                 broker_name=self.config.broker_name, config=self.config.broker_config
             )
 

@@ -8,7 +8,8 @@ from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime
 from dataclasses import dataclass
 
-from src.brokers.base import BrokerAdapter, get_broker_adapter
+from src.brokers.base import BrokerAdapter
+from src.infra.config import create_broker_adapter
 from src.db.models import BrokerAccount, Order, Position
 
 # Import for type hinting
@@ -49,7 +50,7 @@ class MultiBrokerManager:
         for broker_name, broker_config in brokers_config.items():
             try:
                 # Create broker adapter
-                adapter = get_broker_adapter(broker_name, broker_config)
+                adapter = create_broker_adapter(broker_name, broker_config)
 
                 # Create allocation
                 allocation = BrokerAllocation(
