@@ -16,12 +16,8 @@ database:
   max_overflow: 30
   echo: false
 
-# Multi-Broker Configuration
-# Use ACTIVE_BROKER environment variable to select which broker to use
 brokers:
-  # Alpaca Configuration
   alpaca:
-    # Environment variable mappings for credentials
     env_vars:
       api_key: "ALPACA_API_KEY"
       secret_key: "ALPACA_SECRET_KEY"

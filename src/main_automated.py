@@ -105,15 +105,15 @@ class AutomatedTradingSystem:
     10. Audit Logging & Persistence
     """
 
-    def __init__(self, config: TradingConfig):
-        self.config = config
+    def __init__(self, trading_config: TradingConfig):
+        self.config = trading_config
         self.scheduler = AsyncIOScheduler() if AsyncIOScheduler else None
         self.db_session: Optional[Session] = None
         self.is_running = False
         self.dashboard_process: Optional[subprocess.Popen] = None
 
         # Initialize database
-        self.engine = create_engine(config.database_url)
+        self.engine = create_engine(trading_config.database_url)
         SQLModel.metadata.create_all(self.engine)
         self.db_session = Session(self.engine)
 
@@ -121,8 +121,8 @@ class AutomatedTradingSystem:
         from infra.config import get_first_active_broker, get_broker_config
 
         # Get the first active/configured broker and its configuration
-        active_broker = get_first_active_broker(config.config)
-        broker_config = get_broker_config(active_broker, config.config)
+        active_broker = get_first_active_broker(trading_config.config)
+        broker_config = get_broker_config(active_broker, trading_config.config)
 
         # Create broker adapter using config
         self.broker_adapter = create_broker_adapter(active_broker, broker_config)
@@ -130,7 +130,7 @@ class AutomatedTradingSystem:
         logger.info(f"✅ Initialized {active_broker} broker adapter")
 
         # Initialize repositories
-        db_path = config.config["database"]["url"].replace("sqlite:///", "")
+        db_path = trading_config.database_url.replace("sqlite:///", "")
         self.symbol_repo = SymbolRepository(db_path)
         self.stock_data_repo = StockDataRepository(db_path)
         self.signal_repo = SignalRepository(db_path)
@@ -155,21 +155,21 @@ class AutomatedTradingSystem:
         from core.risk_management import RiskParameters
 
         risk_params = RiskParameters(
-            max_position_size_percent=config.config["risk"].get(
+            max_position_size_percent=trading_config.config["risk"].get(
                 "max_exposure_per_trade", 0.05
             )
             * 100,
-            max_total_exposure_percent=config.config["risk"].get(
+            max_total_exposure_percent=trading_config.config["risk"].get(
                 "portfolio_risk_limit", 0.15
             )
             * 100,
-            max_sector_exposure_percent=config.config["risk"].get(
+            max_sector_exposure_percent=trading_config.config["risk"].get(
                 "max_exposure_per_sector", 0.20
             )
             * 100,
         )
         self.risk_manager = RiskManager(risk_params)
-        self.stock_scorer = StockScorer(config.config["scoring"])
+        self.stock_scorer = StockScorer(trading_config.config["scoring"])
         self.order_executor = OrderExecutor(self.broker_adapter, self.db_session)
         self.position_monitor = PositionMonitor(self.broker_adapter, self.db_session)
 
@@ -751,10 +751,8 @@ async def main():
     )
     args = parser.parse_args()
 
-    # Setup logging
     setup_logging()
 
-    # Load configuration
     if args.config:
         config = TradingConfig(config_path=Path(args.config))
     else:
