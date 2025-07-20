@@ -386,45 +386,8 @@ class BrokerConfigurationMixin:
         return api_key, api_secret
 
 
-class OrderTypeConverter:
-    """
-    Common order type conversion utilities
-    """
-
-    @staticmethod
-    def get_standard_order_type_mapping() -> Dict[str, str]:
-        """Get standard order type mappings used by most brokers"""
-        return {
-            "market": "market",
-            "limit": "limit",
-            "stop": "stop",
-            "stop_limit": "stop_limit",
-            "trailing_stop": "trailing_stop",
-        }
-
-    @staticmethod
-    def get_standard_status_mapping() -> Dict[str, str]:
-        """Get standard status mappings used by most brokers"""
-        return {
-            "new": "NEW",
-            "partially_filled": "PARTIALLY_FILLED",
-            "filled": "FILLED",
-            "done_for_day": "DONE_FOR_DAY",
-            "canceled": "CANCELED",
-            "expired": "EXPIRED",
-            "replaced": "REPLACED",
-            "pending_cancel": "PENDING_CANCEL",
-            "pending_replace": "PENDING_REPLACE",
-            "pending_review": "PENDING_REVIEW",
-            "rejected": "REJECTED",
-            "suspended": "SUSPENDED",
-            "pending_new": "PENDING_NEW",
-        }
-
-
 # Update the __all__ export list
 __all__ = [
     # ...existing exports...
     "BrokerConfigurationMixin",
-    "OrderTypeConverter",
 ]

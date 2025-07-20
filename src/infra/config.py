@@ -695,21 +695,12 @@ def _get_field_variants(field: str, broker_name: str) -> List[str]:
     variants.append(f"{broker_name}_{field}")
     variants.append(f"{broker_name.upper()}_{field.upper()}")
 
-    # Add common legacy variants
-    if "api_key" in field:
-        variants.extend(
-            [
-                "alpaca_api_key",  # Legacy support
-                "demo_api_key",  # Legacy support
-            ]
-        )
-    elif "secret" in field or "api_secret" in field:
+    # Add common field variants
+    if "secret" in field or "api_secret" in field:
         variants.extend(
             [
                 "secret_key",
                 "api_secret",
-                "alpaca_secret_key",  # Legacy support
-                "demo_secret_key",  # Legacy support
             ]
         )
 
@@ -735,8 +726,6 @@ def _validate_basic_broker_config(broker_name: str, config: Dict[str, Any]) -> b
         for key in [
             "api_key",
             f"{broker_name}_api_key",
-            "alpaca_api_key",  # Legacy support
-            "demo_api_key",  # Legacy support
         ]
     )
 
@@ -747,8 +736,6 @@ def _validate_basic_broker_config(broker_name: str, config: Dict[str, Any]) -> b
             "secret_key",
             "api_secret",
             f"{broker_name}_secret_key",
-            "alpaca_secret_key",  # Legacy support
-            "demo_secret_key",  # Legacy support
         ]
     )
 

@@ -25,9 +25,13 @@ from ..common import (
     OrderValidationMixin,
     PositionTrackingMixin,
     BrokerConfigurationMixin,
-    OrderTypeConverter,
 )
-from ...infra.model_utils import create_dataclass_from_dict, get_field_mappings
+from ...infra.model_utils import (
+    create_dataclass_from_dict,
+    get_field_mappings,
+    get_order_type_mappings,
+    get_reverse_status_mappings,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -175,8 +179,8 @@ class AlpacaBrokerAdapter(
 
     def _convert_order_type(self, order_type: OrderType) -> str:
         """Convert OrderType to Alpaca format"""
-        type_mapping = OrderTypeConverter.get_standard_order_type_mapping()
-        return type_mapping[order_type]
+        type_mapping = get_order_type_mappings("alpaca")
+        return type_mapping[order_type.value]
 
     def _convert_alpaca_order_to_standard(
         self, alpaca_order: Dict[str, Any]
@@ -440,7 +444,5 @@ class AlpacaBrokerAdapter(
 
     def _convert_status_to_alpaca(self, status: OrderStatus) -> str:
         """Convert standard OrderStatus to Alpaca format"""
-        status_mapping = OrderTypeConverter.get_standard_status_mapping()
-        # Reverse the mapping to get standard -> alpaca format
-        reverse_mapping = {v.lower(): k for k, v in status_mapping.items()}
+        reverse_mapping = get_reverse_status_mappings("alpaca")
         return reverse_mapping.get(status.value.lower(), "new")

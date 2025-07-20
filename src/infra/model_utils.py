@@ -255,25 +255,6 @@ def convert_dict_list_to_dataclass_list(
     return converted_items
 
 
-# Common field mappings for broker APIs
-COMMON_FIELD_MAPPINGS = {
-    "alpaca": {
-        "id": "id",
-        "symbol": "symbol",
-        "qty": "quantity",
-        "side": "side",
-        "status": "status",
-        "created_at": "created_at",
-        "updated_at": "updated_at",
-        "filled_qty": "filled_quantity",
-        "filled_avg_price": "average_fill_price",
-        "market_value": "market_value",
-        "unrealized_pl": "unrealized_pnl",
-        "cost_basis": "cost_basis",
-    }
-}
-
-
 def get_field_mappings(broker_name: str) -> Dict[str, str]:
     """
     Get field mappings for converting broker-specific fields to standard format
@@ -307,3 +288,81 @@ def get_field_mappings(broker_name: str) -> Dict[str, str]:
     }
 
     return mappings.get(broker_name, {})
+
+
+def get_order_type_mappings(broker_name: str) -> Dict[str, str]:
+    """
+    Get order type mappings for converting between broker-specific and standard formats
+
+    Args:
+        broker_name: Name of the broker (e.g., 'alpaca')
+
+    Returns:
+        Dictionary mapping standard order types to broker-specific formats
+    """
+    # Standard order type mappings used by most brokers
+    standard_mappings = {
+        "market": "market",
+        "limit": "limit",
+        "stop": "stop",
+        "stop_limit": "stop_limit",
+        "trailing_stop": "trailing_stop",
+    }
+
+    # Broker-specific overrides
+    broker_mappings = {
+        "alpaca": standard_mappings,  # Alpaca uses standard naming
+        # Add other brokers here as needed
+    }
+
+    return broker_mappings.get(broker_name, standard_mappings)
+
+
+def get_status_mappings(broker_name: str) -> Dict[str, str]:
+    """
+    Get status mappings for converting broker-specific statuses to standard format
+
+    Args:
+        broker_name: Name of the broker (e.g., 'alpaca')
+
+    Returns:
+        Dictionary mapping broker-specific statuses to standard status format
+    """
+    # Standard status mappings used by most brokers
+    standard_mappings = {
+        "new": "NEW",
+        "partially_filled": "PARTIALLY_FILLED",
+        "filled": "FILLED",
+        "done_for_day": "DONE_FOR_DAY",
+        "canceled": "CANCELED",
+        "expired": "EXPIRED",
+        "replaced": "REPLACED",
+        "pending_cancel": "PENDING_CANCEL",
+        "pending_replace": "PENDING_REPLACE",
+        "pending_review": "PENDING_REVIEW",
+        "rejected": "REJECTED",
+        "suspended": "SUSPENDED",
+        "pending_new": "PENDING_NEW",
+    }
+
+    # Broker-specific status mappings
+    broker_mappings = {
+        "alpaca": standard_mappings,  # Alpaca uses standard naming
+        # Add other brokers here as needed with their specific status strings
+    }
+
+    return broker_mappings.get(broker_name, standard_mappings)
+
+
+def get_reverse_status_mappings(broker_name: str) -> Dict[str, str]:
+    """
+    Get reverse status mappings for converting standard statuses to broker-specific format
+
+    Args:
+        broker_name: Name of the broker (e.g., 'alpaca')
+
+    Returns:
+        Dictionary mapping standard statuses to broker-specific formats
+    """
+    status_mappings = get_status_mappings(broker_name)
+    return {v.lower(): k for k, v in status_mappings.items()}
