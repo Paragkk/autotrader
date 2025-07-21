@@ -1,60 +1,33 @@
 """
-Structured Logging Config with pathlib support
+Logging Config with pathlib support
 """
 
-import json
 import logging
-import logging.handlers
 from pathlib import Path
-
-# Try to import json_log_formatter, fall back to standard JSON logging if not available
-try:
-    import json_log_formatter
-
-    HAS_JSON_FORMATTER = True
-except ImportError:
-    HAS_JSON_FORMATTER = False
 
 from .path_utils import ensure_directory, get_logs_dir
 
 
-class SimpleJSONFormatter(logging.Formatter):
-    """Simple JSON formatter as fallback if json_log_formatter is not available"""
+class WarningAndAboveFilter(logging.Filter):
+    """Filter that only allows WARNING level and above messages to pass through"""
 
-    def format(self, record):
-        log_entry = {
-            "timestamp": self.formatTime(record),
-            "name": record.name,
-            "level": record.levelname,
-            "message": record.getMessage(),
-            "filename": record.filename,
-            "lineno": record.lineno,
-        }
-
-        if record.exc_info:
-            log_entry["exception"] = self.formatException(record.exc_info)
-
-        return json.dumps(log_entry)
+    def filter(self, record):
+        return record.levelno >= logging.WARNING
 
 
 def setup_logging(
     log_level: str = "INFO",
     log_file: str | Path | None = None,
-    enable_json_logging: bool = True,
     enable_file_logging: bool = True,
-    max_file_size: int = 10 * 1024 * 1024,  # 10MB
-    backup_count: int = 5,
 ) -> None:
     """
-    Setup structured logging with both console and file handlers.
+    Setup logging with both console and file handlers.
+    File handler only logs WARNING level and above and replaces the log file on each app start.
 
     Args:
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         log_file: Path to log file (relative to logs directory if not absolute)
-        enable_json_logging: Whether to use JSON formatter for console
-        enable_file_logging: Whether to enable file logging
-        max_file_size: Maximum log file size in bytes
-        backup_count: Number of backup files to keep
+        enable_file_logging: Whether to enable file logging (WARNING+ only)
     """
     # Clear any existing handlers
     logger = logging.getLogger()
@@ -64,21 +37,12 @@ def setup_logging(
     level = getattr(logging, log_level.upper(), logging.INFO)
     logger.setLevel(level)
 
-    # Console handler
+    # Console handler - logs all levels according to log_level
     console_handler = logging.StreamHandler()
-
-    if enable_json_logging:
-        if HAS_JSON_FORMATTER:
-            console_formatter = json_log_formatter.JSONFormatter()
-        else:
-            console_formatter = SimpleJSONFormatter()
-    else:
-        console_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-
-    console_handler.setFormatter(console_formatter)
+    # No custom formatter - preserves colorful formatting from uvicorn and other libraries
     logger.addHandler(console_handler)
 
-    # File handler
+    # File handler - only logs WARNING and above
     if enable_file_logging:
         if log_file is None:
             log_file = "trading_system.log"
@@ -93,64 +57,22 @@ def setup_logging(
         # Ensure log directory exists
         ensure_directory(log_file.parent)
 
-        # Rotating file handler
-        file_handler = logging.handlers.RotatingFileHandler(log_file, maxBytes=max_file_size, backupCount=backup_count, encoding="utf-8")
+        # File handler that replaces the log file on each app start
+        # Remove existing log file to start fresh
+        if log_file.exists():
+            log_file.unlink()
+
+        file_handler = logging.FileHandler(log_file, mode="w", encoding="utf-8")
+
+        # Add filter to only log WARNING and above to file
+        warning_filter = WarningAndAboveFilter()
+        file_handler.addFilter(warning_filter)
 
         file_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s")
-
         file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
 
     # Log the setup
     logger.info(f"Logging configured with level: {log_level}")
     if enable_file_logging:
-        logger.info(f"Log file: {log_file}")
-
-
-def get_logger(name: str) -> logging.Logger:
-    """
-    Get a logger instance with the specified name.
-    This ensures consistent logger configuration across the application.
-
-    Args:
-        name: Logger name (typically __name__)
-
-    Returns:
-        Logger instance
-    """
-    return logging.getLogger(name)
-
-
-def setup_simple_logging(log_level: str = "INFO") -> None:
-    """
-    Setup simple logging for scripts and utilities.
-    Uses console output only with a simple format.
-
-    Args:
-        log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-    """
-    # Clear any existing handlers
-    logger = logging.getLogger()
-    logger.handlers.clear()
-
-    # Set log level
-    level = getattr(logging, log_level.upper(), logging.INFO)
-    logger.setLevel(level)
-
-    # Console handler with simple format
-    console_handler = logging.StreamHandler()
-    console_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-    console_handler.setFormatter(console_formatter)
-    logger.addHandler(console_handler)
-
-
-# Default setup for backward compatibility
-if HAS_JSON_FORMATTER:
-    formatter = json_log_formatter.JSONFormatter()
-else:
-    formatter = SimpleJSONFormatter()
-handler = logging.StreamHandler()
-handler.setFormatter(formatter)
-logger = logging.getLogger()
-logger.addHandler(handler)
-logger.setLevel(logging.INFO)
+        logger.info(f"Log file (WARNING+ only): {log_file}")

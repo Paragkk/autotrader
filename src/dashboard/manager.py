@@ -5,6 +5,7 @@ Handles starting/stopping the Streamlit dashboard independently
 
 import logging
 import os
+import platform
 import subprocess
 import time
 from pathlib import Path
@@ -21,12 +22,75 @@ class DashboardManager:
         self.dashboard_process: subprocess.Popen | None = None
         self.dashboard_path = Path(__file__).parent / "main.py"
 
+    def _kill_process_on_port(self, port: int) -> bool:
+        """Kill any process using the specified port"""
+        try:
+            if platform.system() == "Windows":
+                return self._kill_process_on_port_windows(port)
+            return self._kill_process_on_port_unix(port)
+        except Exception as e:
+            logger.warning(f"Failed to kill process on port {port}: {e}")
+            return False
+
+    def _kill_process_on_port_windows(self, port: int) -> bool:
+        """Kill process on Windows using netstat and taskkill"""
+        try:
+            # Find process using the port
+            result = subprocess.run(["netstat", "-ano", "-p", "TCP"], capture_output=True, text=True, check=True)
+
+            for line in result.stdout.splitlines():
+                if f":{port}" in line and "LISTENING" in line:
+                    parts = line.split()
+                    if len(parts) >= 5:
+                        pid = parts[-1]
+                        logger.info(f"Found process {pid} using port {port}")
+                        # Kill the process
+                        kill_result = subprocess.run(["taskkill", "/F", "/PID", pid], capture_output=True, text=True, check=False)
+                        if kill_result.returncode == 0:
+                            logger.info(f"Successfully killed process {pid}")
+                            return True
+                        logger.warning(f"Failed to kill process {pid}: {kill_result.stderr}")
+            return False
+        except subprocess.CalledProcessError as e:
+            logger.warning(f"Failed to run netstat: {e}")
+            return False
+        except Exception as e:
+            logger.warning(f"Failed to kill process on Windows: {e}")
+            return False
+
+    def _kill_process_on_port_unix(self, port: int) -> bool:
+        """Kill process on Unix-like systems using lsof and kill"""
+        try:
+            # Find process using the port
+            result = subprocess.run(["lsof", "-ti", f":{port}"], capture_output=True, text=True, check=False)
+
+            if result.stdout.strip():
+                pid = result.stdout.strip()
+                logger.info(f"Found process {pid} using port {port}")
+                # Kill the process
+                kill_result = subprocess.run(["kill", "-9", pid], capture_output=True, check=False)
+                if kill_result.returncode == 0:
+                    logger.info(f"Successfully killed process {pid}")
+                    return True
+                logger.warning(f"Failed to kill process {pid}")
+            return False
+        except Exception as e:
+            logger.warning(f"Failed to kill process on Unix: {e}")
+            return False
+
     def start_dashboard(self) -> bool:
         """Start the Streamlit dashboard"""
         try:
             if self.is_running():
                 logger.info(f"Dashboard already running on port {self.dashboard_port}")
                 return True
+
+            # Clear any existing process on the port before starting
+            logger.info(f"Checking for existing processes on port {self.dashboard_port}...")
+            if self._kill_process_on_port(self.dashboard_port):
+                logger.info(f"Cleared existing process on port {self.dashboard_port}")
+                # Wait a moment for the port to be fully released
+                time.sleep(2)
 
             logger.info("Starting Streamlit Dashboard...")
 
@@ -127,29 +191,50 @@ class DashboardManager:
         """Stop the Streamlit dashboard"""
         try:
             if not self.is_running():
-                logger.info("Dashboard is not running")
+                logger.info("Dashboard process is not running, but checking for port conflicts...")
+                # Even if our process isn't running, there might be another process on the port
+                if self._kill_process_on_port(self.dashboard_port):
+                    logger.info(f"Cleared conflicting process on port {self.dashboard_port}")
+                    time.sleep(2)  # Wait for port to be fully released
                 return True
 
             logger.info("Stopping Streamlit Dashboard...")
 
             if self.dashboard_process:
+                # First try graceful termination
                 self.dashboard_process.terminate()
 
                 # Wait for graceful shutdown
                 try:
-                    self.dashboard_process.wait(timeout=10)
+                    self.dashboard_process.wait(timeout=5)
+                    logger.info("Dashboard process terminated gracefully")
                 except subprocess.TimeoutExpired:
                     # Force kill if graceful shutdown fails
+                    logger.warning("Dashboard process didn't terminate gracefully, force killing...")
                     self.dashboard_process.kill()
                     self.dashboard_process.wait()
+                    logger.info("Dashboard process force killed")
 
                 self.dashboard_process = None
+
+            # Additional check: make sure the port is actually free
+            logger.info(f"Ensuring port {self.dashboard_port} is fully released...")
+            time.sleep(1)  # Brief pause before checking
+            if self._kill_process_on_port(self.dashboard_port):
+                logger.info(f"Cleared remaining process on port {self.dashboard_port}")
+                time.sleep(2)  # Wait for port to be fully released
 
             logger.info("Dashboard stopped successfully")
             return True
 
         except Exception as e:
             logger.exception(f"Failed to stop dashboard: {e}")
+            # Even if stopping failed, try to clear the port
+            try:
+                self._kill_process_on_port(self.dashboard_port)
+                logger.info(f"Attempted to clear port {self.dashboard_port} after error")
+            except Exception as port_clear_error:
+                logger.warning(f"Could not clear port after stop error: {port_clear_error}")
             return False
 
     def is_running(self) -> bool:

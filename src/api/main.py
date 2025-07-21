@@ -5,7 +5,7 @@ FastAPI application for the Advanced Trading System
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import Any, Never
+from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -726,7 +726,7 @@ async def get_performance_metrics():
 
 # Trading Control APIs
 @app.post("/api/start")
-async def start_trading() -> Never:
+async def start_trading():
     """Start the automated trading system"""
     logger.info("Trading system start requested")
     raise HTTPException(
@@ -736,7 +736,7 @@ async def start_trading() -> Never:
 
 
 @app.post("/api/stop")
-async def stop_trading() -> Never:
+async def stop_trading():
     """Stop the automated trading system"""
     logger.info("Trading system stop requested")
     raise HTTPException(

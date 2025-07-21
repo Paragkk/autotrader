@@ -20,22 +20,11 @@ src_path = Path(__file__).parent / "src"
 if str(src_path) not in sys.path:
     sys.path.insert(0, str(src_path))
 
-# Use centralized logging configuration
-try:
-    from infra.logging_config import get_logger, setup_simple_logging
+# Import and setup centralized logging
+from infra.logging_config import setup_logging
 
-    # Set up centralized logging for startup
-    setup_simple_logging(log_level="INFO")
-    logger = get_logger(__name__)
-    logger.info("Using centralized logging configuration")
-except ImportError as e:
-    # Fallback to basic logging if centralized config isn't available
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    )
-    logger = logging.getLogger(__name__)
-    logger.warning(f"Could not import centralized logging, using basic config: {e}")
+setup_logging(log_level="INFO")
+logger = logging.getLogger(__name__)
 
 
 def print_banner() -> None:

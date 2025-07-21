@@ -9,6 +9,8 @@ dependencies = [
     "pydantic>=2.0.0",
     "pydantic-settings>=2.0.0",
     "python-dotenv>=1.0.0",
+    # System utilities
+    "psutil>=5.9.0",
     # Async and scheduling
     "apscheduler>=3.10.0",
     "aiofiles>=23.0.0",
