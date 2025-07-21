@@ -3,10 +3,12 @@ Strategy Engine - Enhanced with Multi-Strategy Support
 """
 
 import logging
-from typing import Dict, List, Any
 from abc import ABC, abstractmethod
 from datetime import datetime
+from typing import Any
+
 import pandas as pd
+
 from db.repository import SignalRepository
 
 logger = logging.getLogger(__name__)
@@ -15,23 +17,21 @@ logger = logging.getLogger(__name__)
 class TradingStrategy(ABC):
     """Abstract base class for trading strategies"""
 
-    def __init__(self, name: str, config: Dict[str, Any]):
+    def __init__(self, name: str, config: dict[str, Any]) -> None:
         self.name = name
         self.config = config
         self.enabled = config.get("enabled", True)
         self.weight = config.get("weight", 1.0)
 
     @abstractmethod
-    def generate_signals(self, data: pd.DataFrame) -> List[Dict[str, Any]]:
+    def generate_signals(self, data: pd.DataFrame) -> list[dict[str, Any]]:
         """Generate trading signals based on market data"""
-        pass
 
     @abstractmethod
     def validate_config(self) -> bool:
         """Validate strategy configuration"""
-        pass
 
-    def get_metadata(self) -> Dict[str, Any]:
+    def get_metadata(self) -> dict[str, Any]:
         """Get strategy metadata"""
         return {
             "name": self.name,
@@ -44,7 +44,7 @@ class TradingStrategy(ABC):
 class MovingAverageCrossoverStrategy(TradingStrategy):
     """Simple moving average crossover strategy"""
 
-    def __init__(self, name: str, config: Dict[str, Any]):
+    def __init__(self, name: str, config: dict[str, Any]) -> None:
         super().__init__(name, config)
         self.short_window = config.get("short_window", 10)
         self.long_window = config.get("long_window", 30)
@@ -53,10 +53,11 @@ class MovingAverageCrossoverStrategy(TradingStrategy):
     def validate_config(self) -> bool:
         """Validate strategy configuration"""
         if self.short_window >= self.long_window:
-            raise ValueError("Short window must be less than long window")
+            msg = "Short window must be less than long window"
+            raise ValueError(msg)
         return True
 
-    def generate_signals(self, data: pd.DataFrame) -> List[Dict[str, Any]]:
+    def generate_signals(self, data: pd.DataFrame) -> list[dict[str, Any]]:
         """Generate signals based on moving average crossover"""
         signals = []
 
@@ -65,12 +66,8 @@ class MovingAverageCrossoverStrategy(TradingStrategy):
 
         # Calculate moving averages
         data = data.copy()
-        data[f"sma_{self.short_window}"] = (
-            data["close"].rolling(window=self.short_window).mean()
-        )
-        data[f"sma_{self.long_window}"] = (
-            data["close"].rolling(window=self.long_window).mean()
-        )
+        data[f"sma_{self.short_window}"] = data["close"].rolling(window=self.short_window).mean()
+        data[f"sma_{self.long_window}"] = data["close"].rolling(window=self.long_window).mean()
 
         # Generate signals
         for i in range(1, len(data)):
@@ -89,9 +86,7 @@ class MovingAverageCrossoverStrategy(TradingStrategy):
                         "signal_type": "buy",
                         "strength": 0.8,
                         "price": data["close"].iloc[i],
-                        "timestamp": data["date"].iloc[i]
-                        if "date" in data.columns
-                        else datetime.now(),
+                        "timestamp": data["date"].iloc[i] if "date" in data.columns else datetime.now(),
                         "metadata": {
                             "short_ma": current_short,
                             "long_ma": current_long,
@@ -108,9 +103,7 @@ class MovingAverageCrossoverStrategy(TradingStrategy):
                         "signal_type": "sell",
                         "strength": 0.8,
                         "price": data["close"].iloc[i],
-                        "timestamp": data["date"].iloc[i]
-                        if "date" in data.columns
-                        else datetime.now(),
+                        "timestamp": data["date"].iloc[i] if "date" in data.columns else datetime.now(),
                         "metadata": {
                             "short_ma": current_short,
                             "long_ma": current_long,
@@ -125,7 +118,7 @@ class MovingAverageCrossoverStrategy(TradingStrategy):
 class RSIStrategy(TradingStrategy):
     """RSI-based trading strategy"""
 
-    def __init__(self, name: str, config: Dict[str, Any]):
+    def __init__(self, name: str, config: dict[str, Any]) -> None:
         super().__init__(name, config)
         self.period = config.get("period", 14)
         self.oversold_threshold = config.get("oversold_threshold", 30)
@@ -135,9 +128,8 @@ class RSIStrategy(TradingStrategy):
     def validate_config(self) -> bool:
         """Validate strategy configuration"""
         if self.oversold_threshold >= self.overbought_threshold:
-            raise ValueError(
-                "Oversold threshold must be less than overbought threshold"
-            )
+            msg = "Oversold threshold must be less than overbought threshold"
+            raise ValueError(msg)
         return True
 
     def _calculate_rsi(self, prices: pd.Series) -> pd.Series:
@@ -146,10 +138,9 @@ class RSIStrategy(TradingStrategy):
         gain = (delta.where(delta > 0, 0)).rolling(window=self.period).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(window=self.period).mean()
         rs = gain / loss
-        rsi = 100 - (100 / (1 + rs))
-        return rsi
+        return 100 - (100 / (1 + rs))
 
-    def generate_signals(self, data: pd.DataFrame) -> List[Dict[str, Any]]:
+    def generate_signals(self, data: pd.DataFrame) -> list[dict[str, Any]]:
         """Generate signals based on RSI"""
         signals = []
 
@@ -169,10 +160,7 @@ class RSIStrategy(TradingStrategy):
                 continue
 
             # Check for oversold condition (buy signal)
-            if (
-                prev_rsi <= self.oversold_threshold
-                and current_rsi > self.oversold_threshold
-            ):
+            if prev_rsi <= self.oversold_threshold and current_rsi > self.oversold_threshold:
                 signals.append(
                     {
                         "symbol": data["symbol"].iloc[i],
@@ -180,29 +168,20 @@ class RSIStrategy(TradingStrategy):
                         "signal_type": "buy",
                         "strength": min(1.0, (self.oversold_threshold - prev_rsi) / 10),
                         "price": data["close"].iloc[i],
-                        "timestamp": data["date"].iloc[i]
-                        if "date" in data.columns
-                        else datetime.now(),
+                        "timestamp": data["date"].iloc[i] if "date" in data.columns else datetime.now(),
                         "metadata": {"rsi": current_rsi, "condition": "oversold_exit"},
                     }
                 )
             # Check for overbought condition (sell signal)
-            elif (
-                prev_rsi >= self.overbought_threshold
-                and current_rsi < self.overbought_threshold
-            ):
+            elif prev_rsi >= self.overbought_threshold and current_rsi < self.overbought_threshold:
                 signals.append(
                     {
                         "symbol": data["symbol"].iloc[i],
                         "strategy_name": self.name,
                         "signal_type": "sell",
-                        "strength": min(
-                            1.0, (prev_rsi - self.overbought_threshold) / 10
-                        ),
+                        "strength": min(1.0, (prev_rsi - self.overbought_threshold) / 10),
                         "price": data["close"].iloc[i],
-                        "timestamp": data["date"].iloc[i]
-                        if "date" in data.columns
-                        else datetime.now(),
+                        "timestamp": data["date"].iloc[i] if "date" in data.columns else datetime.now(),
                         "metadata": {
                             "rsi": current_rsi,
                             "condition": "overbought_exit",
@@ -216,7 +195,7 @@ class RSIStrategy(TradingStrategy):
 class MomentumStrategy(TradingStrategy):
     """Price momentum-based strategy"""
 
-    def __init__(self, name: str, config: Dict[str, Any]):
+    def __init__(self, name: str, config: dict[str, Any]) -> None:
         super().__init__(name, config)
         self.lookback_period = config.get("lookback_period", 20)
         self.momentum_threshold = config.get("momentum_threshold", 0.05)  # 5%
@@ -225,10 +204,11 @@ class MomentumStrategy(TradingStrategy):
     def validate_config(self) -> bool:
         """Validate strategy configuration"""
         if self.lookback_period <= 0:
-            raise ValueError("Lookback period must be positive")
+            msg = "Lookback period must be positive"
+            raise ValueError(msg)
         return True
 
-    def generate_signals(self, data: pd.DataFrame) -> List[Dict[str, Any]]:
+    def generate_signals(self, data: pd.DataFrame) -> list[dict[str, Any]]:
         """Generate signals based on price momentum"""
         signals = []
 
@@ -255,9 +235,7 @@ class MomentumStrategy(TradingStrategy):
                         "signal_type": "buy",
                         "strength": min(1.0, momentum / (self.momentum_threshold * 2)),
                         "price": data["close"].iloc[i],
-                        "timestamp": data["date"].iloc[i]
-                        if "date" in data.columns
-                        else datetime.now(),
+                        "timestamp": data["date"].iloc[i] if "date" in data.columns else datetime.now(),
                         "metadata": {
                             "momentum": momentum,
                             "condition": "positive_momentum",
@@ -271,13 +249,9 @@ class MomentumStrategy(TradingStrategy):
                         "symbol": data["symbol"].iloc[i],
                         "strategy_name": self.name,
                         "signal_type": "sell",
-                        "strength": min(
-                            1.0, abs(momentum) / (self.momentum_threshold * 2)
-                        ),
+                        "strength": min(1.0, abs(momentum) / (self.momentum_threshold * 2)),
                         "price": data["close"].iloc[i],
-                        "timestamp": data["date"].iloc[i]
-                        if "date" in data.columns
-                        else datetime.now(),
+                        "timestamp": data["date"].iloc[i] if "date" in data.columns else datetime.now(),
                         "metadata": {
                             "momentum": momentum,
                             "condition": "negative_momentum",
@@ -293,11 +267,11 @@ class StrategyEngine:
     Engine for loading and running multiple trading strategies
     """
 
-    def __init__(self, signal_repo: SignalRepository):
-        self.strategies: Dict[str, TradingStrategy] = {}
+    def __init__(self, signal_repo: SignalRepository) -> None:
+        self.strategies: dict[str, TradingStrategy] = {}
         self.signal_repo = signal_repo
 
-    def load_strategy(self, strategy: TradingStrategy):
+    def load_strategy(self, strategy: TradingStrategy) -> None:
         """Load a strategy into the engine"""
         if strategy.name in self.strategies:
             logger.warning(f"Strategy {strategy.name} already exists, replacing...")
@@ -305,7 +279,7 @@ class StrategyEngine:
         self.strategies[strategy.name] = strategy
         logger.info(f"Loaded strategy: {strategy.name}")
 
-    def remove_strategy(self, strategy_name: str):
+    def remove_strategy(self, strategy_name: str) -> None:
         """Remove a strategy from the engine"""
         if strategy_name in self.strategies:
             del self.strategies[strategy_name]
@@ -313,9 +287,7 @@ class StrategyEngine:
         else:
             logger.warning(f"Strategy {strategy_name} not found")
 
-    def run_all_strategies(
-        self, data: Dict[str, pd.DataFrame]
-    ) -> Dict[str, List[Dict[str, Any]]]:
+    def run_all_strategies(self, data: dict[str, pd.DataFrame]) -> dict[str, list[dict[str, Any]]]:
         """Run all loaded strategies on the provided data"""
         all_signals = {}
 
@@ -341,24 +313,19 @@ class StrategyEngine:
                         self.signal_repo.add(signal)
 
                 except Exception as e:
-                    logger.error(
-                        f"Error running strategy {strategy_name} on {symbol}: {e}"
-                    )
+                    logger.exception(f"Error running strategy {strategy_name} on {symbol}: {e}")
                     continue
 
             all_signals[strategy_name] = strategy_signals
-            logger.info(
-                f"Strategy {strategy_name} generated {len(strategy_signals)} signals"
-            )
+            logger.info(f"Strategy {strategy_name} generated {len(strategy_signals)} signals")
 
         return all_signals
 
-    def run_strategy(
-        self, strategy_name: str, data: Dict[str, pd.DataFrame]
-    ) -> List[Dict[str, Any]]:
+    def run_strategy(self, strategy_name: str, data: dict[str, pd.DataFrame]) -> list[dict[str, Any]]:
         """Run a specific strategy on the provided data"""
         if strategy_name not in self.strategies:
-            raise ValueError(f"Strategy {strategy_name} not found")
+            msg = f"Strategy {strategy_name} not found"
+            raise ValueError(msg)
 
         strategy = self.strategies[strategy_name]
         if not strategy.enabled:
@@ -382,19 +349,17 @@ class StrategyEngine:
                     self.signal_repo.add(signal)
 
             except Exception as e:
-                logger.error(f"Error running strategy {strategy_name} on {symbol}: {e}")
+                logger.exception(f"Error running strategy {strategy_name} on {symbol}: {e}")
                 continue
 
         logger.info(f"Strategy {strategy_name} generated {len(all_signals)} signals")
         return all_signals
 
-    def get_strategy_info(self) -> Dict[str, Dict[str, Any]]:
+    def get_strategy_info(self) -> dict[str, dict[str, Any]]:
         """Get information about all loaded strategies"""
-        return {
-            name: strategy.get_metadata() for name, strategy in self.strategies.items()
-        }
+        return {name: strategy.get_metadata() for name, strategy in self.strategies.items()}
 
-    def enable_strategy(self, strategy_name: str):
+    def enable_strategy(self, strategy_name: str) -> None:
         """Enable a strategy"""
         if strategy_name in self.strategies:
             self.strategies[strategy_name].enabled = True
@@ -402,7 +367,7 @@ class StrategyEngine:
         else:
             logger.warning(f"Strategy {strategy_name} not found")
 
-    def disable_strategy(self, strategy_name: str):
+    def disable_strategy(self, strategy_name: str) -> None:
         """Disable a strategy"""
         if strategy_name in self.strategies:
             self.strategies[strategy_name].enabled = False
@@ -410,29 +375,30 @@ class StrategyEngine:
         else:
             logger.warning(f"Strategy {strategy_name} not found")
 
-    def create_strategy_from_config(self, config: Dict[str, Any]) -> TradingStrategy:
+    def create_strategy_from_config(self, config: dict[str, Any]) -> TradingStrategy:
         """Create a strategy from configuration"""
         strategy_type = config.get("type")
         strategy_name = config.get("name")
 
         if not strategy_type or not strategy_name:
-            raise ValueError("Strategy config must include 'type' and 'name'")
+            msg = "Strategy config must include 'type' and 'name'"
+            raise ValueError(msg)
 
         if strategy_type == "moving_average_crossover":
             return MovingAverageCrossoverStrategy(strategy_name, config)
-        elif strategy_type == "rsi":
+        if strategy_type == "rsi":
             return RSIStrategy(strategy_name, config)
-        elif strategy_type == "momentum":
+        if strategy_type == "momentum":
             return MomentumStrategy(strategy_name, config)
-        else:
-            raise ValueError(f"Unknown strategy type: {strategy_type}")
+        msg = f"Unknown strategy type: {strategy_type}"
+        raise ValueError(msg)
 
-    def load_strategies_from_config(self, strategies_config: List[Dict[str, Any]]):
+    def load_strategies_from_config(self, strategies_config: list[dict[str, Any]]) -> None:
         """Load multiple strategies from configuration"""
         for config in strategies_config:
             try:
                 strategy = self.create_strategy_from_config(config)
                 self.load_strategy(strategy)
             except Exception as e:
-                logger.error(f"Failed to load strategy from config {config}: {e}")
+                logger.exception(f"Failed to load strategy from config {config}: {e}")
                 continue

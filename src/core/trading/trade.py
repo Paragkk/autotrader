@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, Optional
+
 from ..core.broker_adapter import BrokerAdapter
 
 
@@ -15,27 +15,28 @@ class Trade:
     side: str  # 'buy' or 'sell'
     entry_type: str  # 'market', 'limit', 'stop', 'stop_limit'
     quantity: float
-    entry_price: Optional[float] = None
-    stop_loss: Optional[float] = None
-    take_profit: Optional[float] = None
+    entry_price: float | None = None
+    stop_loss: float | None = None
+    take_profit: float | None = None
     order_status: str = "NOT_PLACED"
-    entry_time: Optional[datetime] = None
-    exit_time: Optional[datetime] = None
+    entry_time: datetime | None = None
+    exit_time: datetime | None = None
 
     def __post_init__(self):
         self.order = {}
         self.exit_order = {}
         self._is_closed = False
-        self._broker: Optional[BrokerAdapter] = None
+        self._broker: BrokerAdapter | None = None
 
-    def set_broker(self, broker: BrokerAdapter):
+    def set_broker(self, broker: BrokerAdapter) -> None:
         """Set the broker adapter for executing trades."""
         self._broker = broker
 
-    def place_entry_order(self) -> Dict:
+    def place_entry_order(self) -> dict:
         """Place the entry order through the broker."""
         if not self._broker:
-            raise ValueError("Broker not set. Call set_broker() first.")
+            msg = "Broker not set. Call set_broker() first."
+            raise ValueError(msg)
 
         self.order = self._broker.place_order(
             symbol=self.symbol,
@@ -50,7 +51,7 @@ class Trade:
 
         return self.order
 
-    def _place_risk_orders(self):
+    def _place_risk_orders(self) -> None:
         """Place stop loss and take profit orders."""
         if not self._broker:
             return
@@ -75,7 +76,7 @@ class Trade:
                 price=self.take_profit,
             )
 
-    def close_trade(self, exit_price: Optional[float] = None) -> Dict:
+    def close_trade(self, exit_price: float | None = None) -> dict:
         """Close the trade at market or specified price."""
         if not self._broker or self._is_closed:
             return {}
@@ -92,7 +93,7 @@ class Trade:
         self.exit_time = datetime.now()
         return self.exit_order
 
-    def get_status(self) -> Dict:
+    def get_status(self) -> dict:
         """Get the current status of the trade."""
         return {
             "trade_id": self.trade_id,

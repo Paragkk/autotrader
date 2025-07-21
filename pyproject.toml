@@ -3,7 +3,7 @@ name = "autotrader-pro"
 version = "1.0.0"
 description = "Professional Automated Trading System with ML and Advanced Risk Management"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 dependencies = [
     # Core dependencies
     "pydantic>=2.0.0",
@@ -59,7 +59,6 @@ dev = [
     "pytest-asyncio>=0.21.0",
     "pytest-mock>=3.11.0",
     "pytest-cov>=4.1.0",
-    "black>=23.0.0",
     "ruff>=0.1.0",
     "mypy>=1.0.0",
     "pre-commit>=3.0.0",
@@ -84,16 +83,43 @@ broker = [
 [project.scripts]
 autotrader = "src.main_automated:main"
 
-[tool.black]
-line-length = 88
-target-version = ['py311']
-
 [tool.ruff]
-line-length = 88
-target-version = "py311"
+line-length = 180
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "N", "UP", "ANN", "S", "B", "A", "COM", "C4", "DTZ", "T10", "EM", "EXE", "ISC", "ICN", "G", "INP", "PIE", "T20", "PT", "Q", "RSE", "RET", "SLF", "SIM", "TID", "TCH", "ARG", "PTH", "ERA", "PD", "PGH", "PL", "TRY", "NPY", "RUF"]
+ignore = [
+    # Type annotations - reduce burden on existing code
+    "ANN101", "ANN102", "ANN201", "ANN202", "ANN204", "ANN001", "ANN002", "ANN003", "ANN401",
+    # Logging and string formatting - performance over style
+    "G004", "TRY401",
+    # Import and code style
+    "COM812", "ISC001", "TID252",
+    # Exception handling - too restrictive for existing code
+    "TRY300", "TRY301", "B904",
+    # Security - too restrictive for development code
+    "S104", "S603", "S607", "S608", "S105", "S112",
+    # Magic values and complexity
+    "PLR2004", "PLR0911", "PLR0912", "PLR0913",
+    # Unused arguments in interface methods
+    "ARG001", "ARG002",
+    # Datetime without timezone (often not needed for trading apps)
+    "DTZ005", "DTZ007",
+    # Path operations - existing code compatibility
+    "PTH100", "PTH120",
+    # Pandas and other specific rules
+    "PD901",
+    # Miscellaneous style issues
+    "N806", "N817", "B018", "SIM102", "UP035", "PLW0603", "PLW2901", "RUF012"
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.13"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
@@ -111,7 +137,6 @@ dev-dependencies = [
     "pre-commit>=3.0.0",
     "pytest>=7.0.0",
     "pytest-mock",
-    "ruff",
-    "black>=23.0.0",
+    "ruff>=0.1.0",
     "mypy>=1.0.0",
 ]

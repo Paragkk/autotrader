@@ -2,14 +2,14 @@
 Order Executor - Executes trading orders with retry logic and monitoring
 """
 
-import logging
-from typing import Dict, List, Any, Optional
-from datetime import datetime, timedelta
 import asyncio
+import logging
 from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Any
 
-from db.models import Signal, Position
 from brokers.base.broker_adapter import BrokerAdapter
+from db.models import Position, Signal
 
 logger = logging.getLogger(__name__)
 
@@ -30,15 +30,11 @@ class OrderExecutor:
     Handles order execution with retry logic and monitoring
     """
 
-    def __init__(
-        self, broker_adapter: BrokerAdapter, config: Optional[OrderConfig] = None
-    ):
+    def __init__(self, broker_adapter: BrokerAdapter, config: OrderConfig | None = None) -> None:
         self.broker_adapter = broker_adapter
         self.config = config or OrderConfig()
 
-    async def execute_signal(
-        self, signal: Signal, position_size: float
-    ) -> Dict[str, Any]:
+    async def execute_signal(self, signal: Signal, position_size: float) -> dict[str, Any]:
         """
         Execute a trading signal as an order
 
@@ -62,12 +58,10 @@ class OrderExecutor:
             return order_result
 
         except Exception as e:
-            logger.error(f"❌ Order execution failed for {signal.symbol}: {e}")
+            logger.exception(f"❌ Order execution failed for {signal.symbol}: {e}")
             return {"status": "failed", "error": str(e), "symbol": signal.symbol}
 
-    async def _calculate_order_params(
-        self, signal: Signal, position_size: float
-    ) -> Dict[str, Any]:
+    async def _calculate_order_params(self, signal: Signal, position_size: float) -> dict[str, Any]:
         """Calculate order parameters"""
 
         # Get current price
@@ -97,9 +91,7 @@ class OrderExecutor:
             "time_in_force": self.config.default_time_in_force,
         }
 
-    async def _execute_order_with_retry(
-        self, order_params: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def _execute_order_with_retry(self, order_params: dict[str, Any]) -> dict[str, Any]:
         """Execute order with retry logic"""
 
         last_error = None
@@ -134,7 +126,7 @@ class OrderExecutor:
         # All retries failed
         raise last_error
 
-    async def _monitor_order_status(self, order_id: str) -> Dict[str, Any]:
+    async def _monitor_order_status(self, order_id: str) -> dict[str, Any]:
         """Monitor order status until filled or timeout"""
 
         start_time = datetime.now()
@@ -151,14 +143,14 @@ class OrderExecutor:
                 await asyncio.sleep(2)
 
             except Exception as e:
-                logger.error(f"❌ Error checking order status: {e}")
+                logger.exception(f"❌ Error checking order status: {e}")
                 break
 
         # Timeout reached
         logger.warning(f"⏰ Order monitoring timeout for {order_id}")
         return {"status": "timeout", "order_id": order_id}
 
-    async def exit_position(self, position: Position) -> Dict[str, Any]:
+    async def exit_position(self, position: Position) -> dict[str, Any]:
         """Exit an existing position"""
         logger.info(f"🚪 Exiting position: {position.symbol}")
 
@@ -181,7 +173,7 @@ class OrderExecutor:
             return order_result
 
         except Exception as e:
-            logger.error(f"❌ Position exit failed for {position.symbol}: {e}")
+            logger.exception(f"❌ Position exit failed for {position.symbol}: {e}")
             return {"status": "failed", "error": str(e), "symbol": position.symbol}
 
     async def cancel_order(self, order_id: str) -> bool:
@@ -194,10 +186,10 @@ class OrderExecutor:
             return True
 
         except Exception as e:
-            logger.error(f"❌ Order cancellation failed: {e}")
+            logger.exception(f"❌ Order cancellation failed: {e}")
             return False
 
-    async def get_order_history(self, days: int = 7) -> List[Dict[str, Any]]:
+    async def get_order_history(self, days: int = 7) -> list[dict[str, Any]]:
         """Get recent order history"""
         try:
             orders = await self.broker_adapter.get_order_history(days)
@@ -215,10 +207,10 @@ class OrderExecutor:
             ]
 
         except Exception as e:
-            logger.error(f"❌ Failed to get order history: {e}")
+            logger.exception(f"❌ Failed to get order history: {e}")
             return []
 
-    async def get_execution_metrics(self) -> Dict[str, Any]:
+    async def get_execution_metrics(self) -> dict[str, Any]:
         """Get order execution performance metrics"""
         try:
             # Get recent orders
@@ -238,14 +230,10 @@ class OrderExecutor:
             execution_times = []
             for order in orders:
                 if order["filled_at"] and order["created_at"]:
-                    exec_time = (
-                        order["filled_at"] - order["created_at"]
-                    ).total_seconds()
+                    exec_time = (order["filled_at"] - order["created_at"]).total_seconds()
                     execution_times.append(exec_time)
 
-            avg_execution_time = (
-                sum(execution_times) / len(execution_times) if execution_times else 0
-            )
+            avg_execution_time = sum(execution_times) / len(execution_times) if execution_times else 0
 
             return {
                 "total_orders": total_orders,
@@ -256,10 +244,10 @@ class OrderExecutor:
             }
 
         except Exception as e:
-            logger.error(f"❌ Failed to calculate execution metrics: {e}")
+            logger.exception(f"❌ Failed to calculate execution metrics: {e}")
             return {"error": str(e)}
 
-    async def validate_order(self, order_params: Dict[str, Any]) -> Dict[str, Any]:
+    async def validate_order(self, order_params: dict[str, Any]) -> dict[str, Any]:
         """Validate order parameters before execution"""
 
         validation_results = {"valid": True, "errors": [], "warnings": []}
@@ -268,9 +256,7 @@ class OrderExecutor:
         required_params = ["symbol", "side", "quantity"]
         for param in required_params:
             if param not in order_params:
-                validation_results["errors"].append(
-                    f"Missing required parameter: {param}"
-                )
+                validation_results["errors"].append(f"Missing required parameter: {param}")
                 validation_results["valid"] = False
 
         # Validate quantity

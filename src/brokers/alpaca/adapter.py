@@ -4,33 +4,33 @@ Uses common infrastructure and focuses only on Alpaca-specific logic
 """
 
 import logging
-from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
+from typing import Any
 
-from ..base import (
-    OrderRequest,
-    OrderResponse,
-    Position,
-    AccountInfo,
-    Quote,
-    BarData,
-    OrderType,
-    OrderStatus,
-    BrokerConnectionError,
-    BrokerOrderError,
-    BrokerDataError,
-)
-from ..common import (
-    RESTBrokerAdapter,
-    OrderValidationMixin,
-    PositionTrackingMixin,
-    BrokerConfigurationMixin,
-)
 from ...infra.model_utils import (
     create_dataclass_from_dict,
     get_field_mappings,
     get_order_type_mappings,
     get_reverse_status_mappings,
+)
+from ..base import (
+    AccountInfo,
+    BarData,
+    BrokerConnectionError,
+    BrokerDataError,
+    BrokerOrderError,
+    OrderRequest,
+    OrderResponse,
+    OrderStatus,
+    OrderType,
+    Position,
+    Quote,
+)
+from ..common import (
+    BrokerConfigurationMixin,
+    OrderValidationMixin,
+    PositionTrackingMixin,
+    RESTBrokerAdapter,
 )
 
 logger = logging.getLogger(__name__)
@@ -44,17 +44,13 @@ class AlpacaBrokerAdapter(
 ):
     """Clean Alpaca broker adapter using common infrastructure"""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]) -> None:
         """Initialize Alpaca broker adapter"""
         super().__init__(config)
 
         # Extract Alpaca-specific configuration using common utilities
-        self.api_key, self.api_secret = self.extract_broker_credentials(
-            config, "alpaca"
-        )
-        self.paper_trading = config.get(
-            "paper_trading", config.get("use_paper_trading", True)
-        )
+        self.api_key, self.api_secret = self.extract_broker_credentials(config, "alpaca")
+        self.paper_trading = config.get("paper_trading", config.get("use_paper_trading", True))
 
         # Validate credentials using common validation
         self.validate_api_credentials(self.api_key, self.api_secret, "alpaca")
@@ -70,53 +66,52 @@ class AlpacaBrokerAdapter(
         return "https://api.alpaca.markets/v2"
 
     @property
-    def auth_headers(self) -> Dict[str, str]:
+    def auth_headers(self) -> dict[str, str]:
         return {
             "APCA-API-KEY-ID": self.api_key,
             "APCA-API-SECRET-KEY": self.api_secret,
             "Content-Type": "application/json",
         }
 
-    def _validate_credentials(self):
+    def _validate_credentials(self) -> None:
         """Validate API credentials"""
         if not self.api_key or self.api_key == "your_alpaca_api_key_here":
-            raise ValueError(
+            msg = (
                 "Missing or invalid ALPACA_API_KEY. Please:\n"
                 "1. Sign up for Alpaca paper trading at https://app.alpaca.markets\n"
                 "2. Get your API key from the dashboard\n"
                 "3. Set ALPACA_API_KEY in your .env file"
             )
+            raise ValueError(msg)
         if not self.api_secret or self.api_secret == "your_alpaca_secret_key_here":
-            raise ValueError(
+            msg = (
                 "Missing or invalid ALPACA_SECRET_KEY. Please:\n"
                 "1. Sign up for Alpaca paper trading at https://app.alpaca.markets\n"
                 "2. Get your secret key from the dashboard\n"
                 "3. Set ALPACA_SECRET_KEY in your .env file"
             )
+            raise ValueError(msg)
 
     async def connect(self) -> bool:
         """Connect to Alpaca API"""
         try:
-            logger.info(
-                f"Connecting to Alpaca API ({'paper' if self.paper_trading else 'live'} trading)"
-            )
+            logger.info(f"Connecting to Alpaca API ({'paper' if self.paper_trading else 'live'} trading)")
 
             # Test connection by getting account info without connection check (since we're connecting)
             account_data = await self._get_without_connection_check("account")
             if account_data:
                 self._connected = True
-                logger.info(
-                    f"✅ Connected to Alpaca ({'paper' if self.paper_trading else 'live'} trading)"
-                )
+                logger.info(f"✅ Connected to Alpaca ({'paper' if self.paper_trading else 'live'} trading)")
                 logger.info(f"Account ID: {account_data.get('id')}")
                 logger.info(f"Account Status: {account_data.get('status')}")
                 return True
-            else:
-                raise BrokerConnectionError("Failed to get account info")
+            msg = "Failed to get account info"
+            raise BrokerConnectionError(msg)
 
         except Exception as e:
-            logger.error(f"❌ Failed to connect to Alpaca: {e}")
-            raise BrokerConnectionError(f"Alpaca connection failed: {e}")
+            logger.exception(f"❌ Failed to connect to Alpaca: {e}")
+            msg = f"Alpaca connection failed: {e}"
+            raise BrokerConnectionError(msg)
 
     async def place_order(self, order_request: OrderRequest) -> OrderResponse:
         """Place a trading order using Alpaca API"""
@@ -139,10 +134,11 @@ class AlpacaBrokerAdapter(
             return order_response
 
         except Exception as e:
-            logger.error(f"Failed to place order: {e}")
-            raise BrokerOrderError(f"Order placement failed: {e}")
+            logger.exception(f"Failed to place order: {e}")
+            msg = f"Order placement failed: {e}"
+            raise BrokerOrderError(msg)
 
-    def _convert_order_request(self, order_request: OrderRequest) -> Dict[str, Any]:
+    def _convert_order_request(self, order_request: OrderRequest) -> dict[str, Any]:
         """Convert standard order request to Alpaca format"""
         alpaca_order = {
             "symbol": order_request.symbol,
@@ -169,9 +165,7 @@ class AlpacaBrokerAdapter(
 
         # Add bracket order fields
         if order_request.take_profit:
-            alpaca_order["take_profit"] = {
-                "limit_price": str(order_request.take_profit)
-            }
+            alpaca_order["take_profit"] = {"limit_price": str(order_request.take_profit)}
         if order_request.stop_loss:
             alpaca_order["stop_loss"] = {"stop_price": str(order_request.stop_loss)}
 
@@ -182,9 +176,7 @@ class AlpacaBrokerAdapter(
         type_mapping = get_order_type_mappings("alpaca")
         return type_mapping[order_type.value]
 
-    def _convert_alpaca_order_to_standard(
-        self, alpaca_order: Dict[str, Any]
-    ) -> OrderResponse:
+    def _convert_alpaca_order_to_standard(self, alpaca_order: dict[str, Any]) -> OrderResponse:
         """Convert Alpaca order response to standard format"""
         # Get field mappings for Alpaca
         field_mappings = get_field_mappings("alpaca")
@@ -198,10 +190,11 @@ class AlpacaBrokerAdapter(
             await self._delete(f"orders/{order_id}")
             return True
         except Exception as e:
-            logger.error(f"Failed to cancel order {order_id}: {e}")
-            raise BrokerOrderError(f"Order cancellation failed: {e}")
+            logger.exception(f"Failed to cancel order {order_id}: {e}")
+            msg = f"Order cancellation failed: {e}"
+            raise BrokerOrderError(msg)
 
-    async def get_order_status(self, order_id: str) -> Optional[OrderResponse]:
+    async def get_order_status(self, order_id: str) -> OrderResponse | None:
         """Get the status of an order"""
         try:
             response_data = await self._get(f"orders/{order_id}")
@@ -209,12 +202,11 @@ class AlpacaBrokerAdapter(
                 return None
             return self._convert_alpaca_order_to_standard(response_data)
         except Exception as e:
-            logger.error(f"Failed to get order status for {order_id}: {e}")
-            raise BrokerDataError(f"Failed to get order status: {e}")
+            logger.exception(f"Failed to get order status for {order_id}: {e}")
+            msg = f"Failed to get order status: {e}"
+            raise BrokerDataError(msg)
 
-    async def get_orders(
-        self, status: Optional[OrderStatus] = None, limit: int = 100
-    ) -> List[OrderResponse]:
+    async def get_orders(self, status: OrderStatus | None = None, limit: int = 100) -> list[OrderResponse]:
         """Get orders with optional status filter"""
         try:
             params = {"limit": limit}
@@ -230,8 +222,9 @@ class AlpacaBrokerAdapter(
 
             return orders
         except Exception as e:
-            logger.error(f"Failed to get orders: {e}")
-            raise BrokerDataError(f"Failed to get orders: {e}")
+            logger.exception(f"Failed to get orders: {e}")
+            msg = f"Failed to get orders: {e}"
+            raise BrokerDataError(msg)
 
     async def get_account_info(self) -> AccountInfo:
         """Get account information"""
@@ -244,10 +237,11 @@ class AlpacaBrokerAdapter(
             return create_dataclass_from_dict(account_data, AccountInfo, field_mappings)
 
         except Exception as e:
-            logger.error(f"Failed to get account info: {e}")
-            raise BrokerDataError(f"Failed to get account info: {e}")
+            logger.exception(f"Failed to get account info: {e}")
+            msg = f"Failed to get account info: {e}"
+            raise BrokerDataError(msg)
 
-    async def get_positions(self) -> List[Position]:
+    async def get_positions(self) -> list[Position]:
         """Get all current positions"""
         try:
             positions_data = await self._get("positions")
@@ -259,18 +253,17 @@ class AlpacaBrokerAdapter(
 
             return positions
         except Exception as e:
-            logger.error(f"Failed to get positions: {e}")
-            raise BrokerDataError(f"Failed to get positions: {e}")
+            logger.exception(f"Failed to get positions: {e}")
+            msg = f"Failed to get positions: {e}"
+            raise BrokerDataError(msg)
 
-    def _convert_alpaca_position_to_standard(
-        self, alpaca_position: Dict[str, Any]
-    ) -> Position:
+    def _convert_alpaca_position_to_standard(self, alpaca_position: dict[str, Any]) -> Position:
         """Convert Alpaca position to standard format"""
         field_mappings = get_field_mappings("alpaca")
 
         return create_dataclass_from_dict(alpaca_position, Position, field_mappings)
 
-    async def get_position(self, symbol: str) -> Optional[Position]:
+    async def get_position(self, symbol: str) -> Position | None:
         """Get position for a specific symbol"""
         try:
             position_data = await self._get(f"positions/{symbol}")
@@ -281,10 +274,11 @@ class AlpacaBrokerAdapter(
             # Position not found is not an error
             if "404" in str(e):
                 return None
-            logger.error(f"Failed to get position for {symbol}: {e}")
-            raise BrokerDataError(f"Failed to get position: {e}")
+            logger.exception(f"Failed to get position for {symbol}: {e}")
+            msg = f"Failed to get position: {e}"
+            raise BrokerDataError(msg)
 
-    async def get_quote(self, symbol: str) -> Optional[Quote]:
+    async def get_quote(self, symbol: str) -> Quote | None:
         """Get real-time quote for a symbol"""
         try:
             # Use Alpaca data API endpoint
@@ -304,10 +298,11 @@ class AlpacaBrokerAdapter(
                 broker_specific_data=quote,
             )
         except Exception as e:
-            logger.error(f"Failed to get quote for {symbol}: {e}")
-            raise BrokerDataError(f"Failed to get quote: {e}")
+            logger.exception(f"Failed to get quote for {symbol}: {e}")
+            msg = f"Failed to get quote: {e}"
+            raise BrokerDataError(msg)
 
-    async def get_quotes(self, symbols: List[str]) -> Dict[str, Quote]:
+    async def get_quotes(self, symbols: list[str]) -> dict[str, Quote]:
         """Get real-time quotes for multiple symbols"""
         try:
             quotes_dict = {}
@@ -325,17 +320,18 @@ class AlpacaBrokerAdapter(
 
             return quotes_dict
         except Exception as e:
-            logger.error(f"Failed to get quotes for symbols {symbols}: {e}")
-            raise BrokerDataError(f"Failed to get quotes: {e}")
+            logger.exception(f"Failed to get quotes for symbols {symbols}: {e}")
+            msg = f"Failed to get quotes: {e}"
+            raise BrokerDataError(msg)
 
     async def get_bars(
         self,
         symbol: str,
         timeframe: str = "1D",
-        start: Optional[datetime] = None,
-        end: Optional[datetime] = None,
+        start: datetime | None = None,
+        end: datetime | None = None,
         limit: int = 100,
-    ) -> List[BarData]:
+    ) -> list[BarData]:
         """Get historical bar data for a symbol"""
         try:
             # Set default dates if not provided
@@ -359,9 +355,7 @@ class AlpacaBrokerAdapter(
                 for bar_data in bars_data["bars"][symbol]:
                     bar = BarData(
                         symbol=symbol,
-                        timestamp=datetime.fromisoformat(
-                            bar_data["t"].replace("Z", "+00:00")
-                        ),
+                        timestamp=datetime.fromisoformat(bar_data["t"].replace("Z", "+00:00")),
                         open=float(bar_data["o"]),
                         high=float(bar_data["h"]),
                         low=float(bar_data["l"]),
@@ -374,8 +368,9 @@ class AlpacaBrokerAdapter(
 
             return bars
         except Exception as e:
-            logger.error(f"Failed to get bars for {symbol}: {e}")
-            raise BrokerDataError(f"Failed to get bars: {e}")
+            logger.exception(f"Failed to get bars for {symbol}: {e}")
+            msg = f"Failed to get bars: {e}"
+            raise BrokerDataError(msg)
 
     async def is_market_open(self) -> bool:
         """Check if market is currently open"""
@@ -383,10 +378,10 @@ class AlpacaBrokerAdapter(
             clock_data = await self._get("clock")
             return clock_data.get("is_open", False)
         except Exception as e:
-            logger.error(f"Failed to check market status: {e}")
+            logger.exception(f"Failed to check market status: {e}")
             return False
 
-    async def get_market_hours(self, date: Optional[datetime] = None) -> Dict[str, Any]:
+    async def get_market_hours(self, date: datetime | None = None) -> dict[str, Any]:
         """Get market hours for a specific date"""
         try:
             # Use current date if none provided
@@ -427,14 +422,10 @@ class AlpacaBrokerAdapter(
             }
 
         except Exception as e:
-            logger.error(
-                f"Failed to get market hours for {date_str if date else 'today'}: {e}"
-            )
+            logger.exception(f"Failed to get market hours for {date_str if date else 'today'}: {e}")
             # Return fallback market hours for US markets
             return {
-                "date": date.strftime("%Y-%m-%d")
-                if date
-                else datetime.now().strftime("%Y-%m-%d"),
+                "date": date.strftime("%Y-%m-%d") if date else datetime.now().strftime("%Y-%m-%d"),
                 "is_open": True,  # Assume open during regular hours
                 "market_open": "09:30:00",
                 "market_close": "16:00:00",

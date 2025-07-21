@@ -4,12 +4,14 @@ AutoTrader Pro - System Status Check
 Comprehensive validation of the trading system
 """
 
-import os
-import sys
 import asyncio
-import requests
-from pathlib import Path
+import logging
+import os
 import subprocess
+import sys
+from pathlib import Path
+
+import requests
 
 # Add src to Python path
 src_path = Path(__file__).parent / "src"
@@ -20,33 +22,45 @@ os.environ.setdefault("ACTIVE_BROKER", "demo_broker")
 os.environ.setdefault("DEMO_API_KEY", "demo_key_123")
 os.environ.setdefault("DEMO_SECRET_KEY", "demo_secret_456")
 
+# Configure logging for status checker
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+logger = logging.getLogger(__name__)
+
+# HTTP Status Code Constants
+HTTP_OK = 200
+
 
 class SystemStatusChecker:
     """Comprehensive system status checker"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.api_running = False
         self.dashboard_running = False
         self.broker_system_ok = False
 
-    def check_uv_installation(self):
+    def check_uv_installation(self) -> bool:
         """Check if uv is installed and working"""
-        print("1. Checking uv installation...")
+        logger.info("1. Checking uv installation...")
         try:
-            result = subprocess.run(["uv", "--version"], capture_output=True, text=True)
-            if result.returncode == 0:
-                print(f"   ✅ uv installed: {result.stdout.strip()}")
-                return True
-            else:
-                print("   ❌ uv command failed")
-                return False
+            result = subprocess.run(
+                ["uv", "--version"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
         except FileNotFoundError:
-            print("   ❌ uv not found in PATH")
+            logger.exception("   ❌ uv not found in PATH")
+            return False
+        else:
+            if result.returncode == 0:
+                logger.info("   ✅ uv installed: %s", result.stdout.strip())
+                return True
+            logger.error("   ❌ uv command failed")
             return False
 
-    def check_dependencies(self):
+    def check_dependencies(self) -> bool:
         """Check if dependencies are available"""
-        print("2. Checking Python dependencies...")
+        logger.info("2. Checking Python dependencies...")
         dependencies = [
             "fastapi",
             "streamlit",
@@ -58,22 +72,25 @@ class SystemStatusChecker:
         for dep in dependencies:
             try:
                 result = subprocess.run(
-                    ["uv", "run", "python", "-c", f"import {dep}"], capture_output=True
+                    ["uv", "run", "python", "-c", f"import {dep}"],
+                    capture_output=True,
+                    check=False,
                 )
-                if result.returncode == 0:
-                    print(f"   ✅ {dep} available")
-                else:
-                    print(f"   ❌ {dep} not available")
-                    return False
-            except Exception as e:
-                print(f"   ❌ Error checking {dep}: {e}")
+            except Exception:
+                logger.exception("   ❌ Error checking %s", dep)
                 return False
+            else:
+                if result.returncode == 0:
+                    logger.info("   ✅ %s available", dep)
+                else:
+                    logger.error("   ❌ %s not available", dep)
+                    return False
 
         return True
 
-    async def check_broker_system(self):
+    async def check_broker_system(self) -> bool:
         """Test the broker system directly"""
-        print("3. Testing broker system...")
+        logger.info("3. Testing broker system...")
         try:
             from src.core.broker_manager import (
                 get_broker_manager,
@@ -85,51 +102,51 @@ class SystemStatusChecker:
 
             # Test account info
             account = await broker_manager.get_account_info()
-            print(f"   ✅ Account connected: {account.account_id}")
-            print(f"   💰 Portfolio value: ${account.portfolio_value:,.2f}")
+        except Exception:
+            logger.exception("   ❌ Broker system error")
+            return False
+        else:
+            logger.info("   ✅ Account connected: %s", account.account_id)
+            logger.info("   💰 Portfolio value: $%.2f", account.portfolio_value)
 
             self.broker_system_ok = True
             return True
 
-        except Exception as e:
-            print(f"   ❌ Broker system error: {e}")
-            return False
-
-    def check_api_server(self, timeout=5):
+    def check_api_server(self, timeout: int = 5) -> bool:
         """Check if API server is running"""
-        print("4. Checking API server...")
+        logger.info("4. Checking API server...")
         try:
             response = requests.get("http://localhost:8080/health", timeout=timeout)
-            if response.status_code == 200:
-                print("   ✅ API server responding")
+        except requests.exceptions.RequestException:
+            logger.warning("   ⚠️  API server not running or not accessible")
+            return False
+        else:
+            if response.status_code == HTTP_OK:
+                logger.info("   ✅ API server responding")
                 self.api_running = True
                 return True
-            else:
-                print(f"   ❌ API server returned {response.status_code}")
-                return False
-        except requests.exceptions.RequestException:
-            print("   ⚠️  API server not running or not accessible")
+            logger.error("   ❌ API server returned %s", response.status_code)
             return False
 
-    def check_dashboard(self, timeout=5):
+    def check_dashboard(self, timeout: int = 5) -> bool:
         """Check if dashboard is running"""
-        print("5. Checking dashboard...")
+        logger.info("5. Checking dashboard...")
         try:
             response = requests.get("http://localhost:8501", timeout=timeout)
-            if response.status_code == 200:
-                print("   ✅ Dashboard responding")
+        except requests.exceptions.RequestException:
+            logger.warning("   ⚠️  Dashboard not running or not accessible")
+            return False
+        else:
+            if response.status_code == HTTP_OK:
+                logger.info("   ✅ Dashboard responding")
                 self.dashboard_running = True
                 return True
-            else:
-                print(f"   ❌ Dashboard returned {response.status_code}")
-                return False
-        except requests.exceptions.RequestException:
-            print("   ⚠️  Dashboard not running or not accessible")
+            logger.error("   ❌ Dashboard returned %s", response.status_code)
             return False
 
-    def check_configuration_files(self):
+    def check_configuration_files(self) -> bool:
         """Check if all required configuration files exist"""
-        print("6. Checking configuration files...")
+        logger.info("6. Checking configuration files...")
         required_files = [
             "config.yaml",
             ".env",
@@ -142,17 +159,17 @@ class SystemStatusChecker:
 
         for file_path in required_files:
             if Path(file_path).exists():
-                print(f"   ✅ {file_path}")
+                logger.info("   ✅ %s", file_path)
             else:
-                print(f"   ❌ {file_path} missing")
+                logger.error("   ❌ %s missing", file_path)
                 return False
 
         return True
 
-    async def run_full_check(self):
+    async def run_full_check(self) -> bool:
         """Run complete system check"""
-        print("🔍 AutoTrader Pro - System Status Check")
-        print("=" * 50)
+        logger.info("🔍 AutoTrader Pro - System Status Check")
+        logger.info("=" * 50)
 
         checks = [
             self.check_uv_installation(),
@@ -166,42 +183,42 @@ class SystemStatusChecker:
         passed = sum(checks)
         total = len(checks)
 
-        print("\n📊 Summary:")
-        print("=" * 30)
-        print(f"Checks passed: {passed}/{total}")
+        logger.info("\n📊 Summary:")
+        logger.info("=" * 30)
+        logger.info("Checks passed: %d/%d", passed, total)
 
         if self.broker_system_ok:
-            print("✅ Core broker system: WORKING")
+            logger.info("✅ Core broker system: WORKING")
         else:
-            print("❌ Core broker system: FAILED")
+            logger.error("❌ Core broker system: FAILED")
 
         if self.api_running:
-            print("✅ API server: RUNNING")
+            logger.info("✅ API server: RUNNING")
         else:
-            print("⚠️  API server: NOT RUNNING")
+            logger.warning("⚠️  API server: NOT RUNNING")
 
         if self.dashboard_running:
-            print("✅ Dashboard: RUNNING")
+            logger.info("✅ Dashboard: RUNNING")
         else:
-            print("⚠️  Dashboard: NOT RUNNING")
+            logger.warning("⚠️  Dashboard: NOT RUNNING")
 
-        print("\n🎯 Next Steps:")
+        logger.info("\n🎯 Next Steps:")
         if passed == total:
-            print("• System is fully operational!")
-            print("• Access dashboard at: http://localhost:8501")
-            print("• API docs at: http://localhost:8080/docs")
+            logger.info("• System is fully operational!")
+            logger.info("• Access dashboard at: http://localhost:8501")
+            logger.info("• API docs at: http://localhost:8080/docs")
         elif self.broker_system_ok:
-            print("• Broker system works - core functionality OK")
-            print("• To start full system: uv run python start.py")
-            print("• Or use PowerShell: .\\start.ps1")
+            logger.info("• Broker system works - core functionality OK")
+            logger.info("• To start full system: uv run python start.py")
+            logger.info("• Or use PowerShell: .\\start.ps1")
         else:
-            print("• Run: uv run python demo.py (for quick test)")
-            print("• Run: uv run python quick_setup.py (if needed)")
+            logger.info("• Run: uv run python demo.py (for quick test)")
+            logger.info("• Run: uv run python quick_setup.py (if needed)")
 
         return passed == total
 
 
-async def main():
+async def main() -> int:
     """Main function"""
     checker = SystemStatusChecker()
     success = await checker.run_full_check()

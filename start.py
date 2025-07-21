@@ -5,13 +5,13 @@ Launch the complete trading system
 """
 
 import os
-import sys
 import subprocess
+import sys
 import time
 from pathlib import Path
 
 
-def setup_environment():
+def setup_environment() -> None:
     """Setup the environment"""
     # Set demo broker as default
     os.environ.setdefault("ACTIVE_BROKER", "demo_broker")
@@ -23,16 +23,15 @@ def setup_environment():
     sys.path.insert(0, str(src_path))
 
 
-def start_api_server():
+def start_api_server() -> subprocess.Popen[bytes]:
     """Start the FastAPI server"""
-    print("🚀 Starting AutoTrader Pro API Server...")
     cmd = [
         "uv",
         "run",
         "uvicorn",
         "src.api.main:app",
         "--host",
-        "0.0.0.0",
+        "127.0.0.1",  # Changed from 0.0.0.0 for security
         "--port",
         "8080",
         "--reload",
@@ -40,9 +39,8 @@ def start_api_server():
     return subprocess.Popen(cmd)
 
 
-def start_dashboard():
+def start_dashboard() -> subprocess.Popen[bytes]:
     """Start the Streamlit dashboard"""
-    print("📊 Starting AutoTrader Pro Dashboard...")
     time.sleep(2)  # Give API server time to start
     cmd = [
         "uv",
@@ -53,17 +51,14 @@ def start_dashboard():
         "--server.port",
         "8501",
         "--server.address",
-        "0.0.0.0",
+        "127.0.0.1",  # Changed from 0.0.0.0 for security
     ]
     return subprocess.Popen(cmd)
 
 
-def main():
+def main() -> int:
     """Main startup function"""
     setup_environment()
-
-    print("🏛️ AutoTrader Pro v2.0 - Multi-Broker Trading System")
-    print("=" * 60)
 
     try:
         # Start API server
@@ -72,18 +67,11 @@ def main():
         # Start dashboard
         dashboard_process = start_dashboard()
 
-        print("\n✅ AutoTrader Pro is running!")
-        print("🌐 API Documentation: http://localhost:8080/docs")
-        print("📊 Trading Dashboard: http://localhost:8501")
-        print("\nPress Ctrl+C to stop all services")
-
         # Wait for keyboard interrupt
         try:
             while True:
                 time.sleep(1)
         except KeyboardInterrupt:
-            print("\n🛑 Shutting down AutoTrader Pro...")
-
             # Terminate processes
             api_process.terminate()
             dashboard_process.terminate()
@@ -92,10 +80,7 @@ def main():
             api_process.wait()
             dashboard_process.wait()
 
-            print("✅ AutoTrader Pro stopped successfully")
-
-    except Exception as e:
-        print(f"❌ Failed to start AutoTrader Pro: {e}")
+    except Exception:
         return 1
 
     return 0

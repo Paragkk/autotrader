@@ -3,13 +3,13 @@ Trading API Routes
 Comprehensive trading operations through REST API
 """
 
-from typing import List, Optional
 from datetime import datetime
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from core.broker_manager import get_broker_manager
 from brokers.base import OrderRequest, OrderSide, OrderType, TimeInForce
+from core.broker_manager import get_broker_manager
 
 router = APIRouter(prefix="/api/trading", tags=["trading"])
 
@@ -19,21 +19,11 @@ class PlaceOrderRequest(BaseModel):
     symbol: str = Field(..., description="Stock symbol (e.g., AAPL)")
     side: str = Field(..., description="Order side: buy or sell")
     quantity: float = Field(..., gt=0, description="Number of shares")
-    order_type: str = Field(
-        default="market", description="Order type: market, limit, stop, stop_limit"
-    )
-    price: Optional[float] = Field(
-        None, description="Limit price (required for limit orders)"
-    )
-    stop_price: Optional[float] = Field(
-        None, description="Stop price (required for stop orders)"
-    )
-    time_in_force: str = Field(
-        default="day", description="Time in force: day, gtc, ioc, fok"
-    )
-    extended_hours: bool = Field(
-        default=False, description="Allow extended hours trading"
-    )
+    order_type: str = Field(default="market", description="Order type: market, limit, stop, stop_limit")
+    price: float | None = Field(None, description="Limit price (required for limit orders)")
+    stop_price: float | None = Field(None, description="Stop price (required for stop orders)")
+    time_in_force: str = Field(default="day", description="Time in force: day, gtc, ioc, fok")
+    extended_hours: bool = Field(default=False, description="Allow extended hours trading")
 
     class Config:
         schema_extra = {
@@ -54,8 +44,8 @@ class OrderResponse(BaseModel):
     quantity: float
     order_type: str
     status: str
-    price: Optional[float] = None
-    executed_price: Optional[float] = None
+    price: float | None = None
+    executed_price: float | None = None
     executed_quantity: float = 0
     created_at: datetime
     updated_at: datetime
@@ -140,7 +130,7 @@ async def place_order(order_request: PlaceOrderRequest):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to place order: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to place order: {e!s}")
 
 
 @router.delete("/orders/{order_id}")
@@ -161,18 +151,17 @@ async def cancel_order(order_id: str):
 
         if success:
             return {"message": f"Order {order_id} canceled successfully"}
-        else:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Order {order_id} not found or cannot be canceled",
-            )
+        raise HTTPException(
+            status_code=404,
+            detail=f"Order {order_id} not found or cannot be canceled",
+        )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to cancel order: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to cancel order: {e!s}")
 
 
-@router.get("/orders", response_model=List[OrderResponse])
-async def get_orders(status: Optional[str] = None, limit: int = 100):
+@router.get("/orders", response_model=list[OrderResponse])
+async def get_orders(status: str | None = None, limit: int = 100):
     """
     Get order history
 
@@ -214,7 +203,7 @@ async def get_orders(status: Optional[str] = None, limit: int = 100):
         ]
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get orders: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get orders: {e!s}")
 
 
 @router.get("/orders/{order_id}", response_model=OrderResponse)
@@ -250,12 +239,10 @@ async def get_order_status(order_id: str):
         )
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get order status: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to get order status: {e!s}")
 
 
-@router.get("/positions", response_model=List[PositionResponse])
+@router.get("/positions", response_model=list[PositionResponse])
 async def get_positions():
     """
     Get all positions
@@ -286,9 +273,7 @@ async def get_positions():
         ]
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get positions: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to get positions: {e!s}")
 
 
 @router.get("/positions/{symbol}", response_model=PositionResponse)
@@ -307,9 +292,7 @@ async def get_position(symbol: str):
         position = await broker_manager.active_broker.get_position(symbol.upper())
 
         if not position:
-            raise HTTPException(
-                status_code=404, detail=f"No position found for {symbol}"
-            )
+            raise HTTPException(status_code=404, detail=f"No position found for {symbol}")
 
         return PositionResponse(
             symbol=position.symbol,
@@ -324,7 +307,7 @@ async def get_position(symbol: str):
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get position: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get position: {e!s}")
 
 
 @router.delete("/positions/{symbol}")
@@ -344,9 +327,7 @@ async def close_position(symbol: str):
         position = await broker_manager.active_broker.get_position(symbol.upper())
 
         if not position or position.quantity == 0:
-            raise HTTPException(
-                status_code=404, detail=f"No position found for {symbol}"
-            )
+            raise HTTPException(status_code=404, detail=f"No position found for {symbol}")
 
         # Determine order side (opposite of position)
         order_side = OrderSide.SELL if position.quantity > 0 else OrderSide.BUY
@@ -372,9 +353,7 @@ async def close_position(symbol: str):
         }
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to close position: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to close position: {e!s}")
 
 
 @router.get("/account", response_model=AccountResponse)
@@ -404,9 +383,7 @@ async def get_account_info():
         )
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get account info: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to get account info: {e!s}")
 
 
 @router.get("/quotes/{symbol}", response_model=QuoteResponse)
@@ -437,7 +414,7 @@ async def get_quote(symbol: str):
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get quote: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get quote: {e!s}")
 
 
 @router.get("/market/status")
@@ -462,6 +439,4 @@ async def get_market_status():
         }
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get market status: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to get market status: {e!s}")

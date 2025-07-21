@@ -3,15 +3,17 @@ Enhanced Price Forecasting Module
 """
 
 import logging
-from typing import List, Dict, Any, Tuple
 from datetime import datetime, timedelta
-import pandas as pd
+from typing import Any
+
 import numpy as np
+import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression
-from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_squared_error, r2_score
-from ..brokers.base import BrokerInterface
+from sklearn.preprocessing import StandardScaler
+
+from src.brokers.base import BrokerInterface
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +23,7 @@ class PriceForecaster:
     Enhanced price forecasting using multiple models and techniques
     """
 
-    def __init__(self, broker_adapter: BrokerInterface):
+    def __init__(self, broker_adapter: BrokerInterface) -> None:
         self.broker_adapter = broker_adapter
         self.models = {}
         self.scalers = {}
@@ -57,12 +59,8 @@ class PriceForecaster:
 
         # Technical indicators
         df["rsi"] = self._calculate_rsi(df["close"], 14)
-        df["bb_upper"], df["bb_lower"] = self._calculate_bollinger_bands(
-            df["close"], 20, 2
-        )
-        df["bb_position"] = (df["close"] - df["bb_lower"]) / (
-            df["bb_upper"] - df["bb_lower"]
-        )
+        df["bb_upper"], df["bb_lower"] = self._calculate_bollinger_bands(df["close"], 20, 2)
+        df["bb_position"] = (df["close"] - df["bb_lower"]) / (df["bb_upper"] - df["bb_lower"])
 
         # MACD
         df["macd"], df["macd_signal"] = self._calculate_macd(df["close"])
@@ -93,9 +91,7 @@ class PriceForecaster:
 
         # Drop infinite and NaN values
         df = df.replace([np.inf, -np.inf], np.nan)
-        df = df.fillna(method="ffill").fillna(method="bfill")
-
-        return df
+        return df.fillna(method="ffill").fillna(method="bfill")
 
     def _calculate_rsi(self, prices: pd.Series, period: int = 14) -> pd.Series:
         """Calculate RSI indicator"""
@@ -103,12 +99,9 @@ class PriceForecaster:
         gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
         rs = gain / loss
-        rsi = 100 - (100 / (1 + rs))
-        return rsi
+        return 100 - (100 / (1 + rs))
 
-    def _calculate_bollinger_bands(
-        self, prices: pd.Series, period: int = 20, std_dev: float = 2
-    ) -> Tuple[pd.Series, pd.Series]:
+    def _calculate_bollinger_bands(self, prices: pd.Series, period: int = 20, std_dev: float = 2) -> tuple[pd.Series, pd.Series]:
         """Calculate Bollinger Bands"""
         sma = prices.rolling(window=period).mean()
         std = prices.rolling(window=period).std()
@@ -116,9 +109,7 @@ class PriceForecaster:
         lower = sma - (std * std_dev)
         return upper, lower
 
-    def _calculate_macd(
-        self, prices: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9
-    ) -> Tuple[pd.Series, pd.Series]:
+    def _calculate_macd(self, prices: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9) -> tuple[pd.Series, pd.Series]:
         """Calculate MACD indicator"""
         ema_fast = prices.ewm(span=fast).mean()
         ema_slow = prices.ewm(span=slow).mean()
@@ -132,7 +123,7 @@ class PriceForecaster:
         data: pd.DataFrame,
         model_type: str = "random_forest",
         target_days: int = 1,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Train a price prediction model for a symbol
 
@@ -150,33 +141,21 @@ class PriceForecaster:
             df_features = self.prepare_features(data)
 
             # Create target variable (future price)
-            df_features[f"target_price_{target_days}d"] = df_features["close"].shift(
-                -target_days
-            )
-            df_features[f"target_return_{target_days}d"] = (
-                df_features[f"target_price_{target_days}d"] / df_features["close"] - 1
-            )
+            df_features[f"target_price_{target_days}d"] = df_features["close"].shift(-target_days)
+            df_features[f"target_return_{target_days}d"] = df_features[f"target_price_{target_days}d"] / df_features["close"] - 1
 
             # Remove rows with NaN targets
             df_clean = df_features.dropna()
 
             if len(df_clean) < 50:
-                raise ValueError(
-                    f"Insufficient data for training: {len(df_clean)} rows"
-                )
+                msg = f"Insufficient data for training: {len(df_clean)} rows"
+                raise ValueError(msg)
 
             # Select features for training
-            feature_columns = [
-                col
-                for col in df_clean.columns
-                if col not in ["date", "target_price_1d", "target_return_1d", "close"]
-                and not col.startswith("target_")
-            ]
+            feature_columns = [col for col in df_clean.columns if col not in ["date", "target_price_1d", "target_return_1d", "close"] and not col.startswith("target_")]
 
             X = df_clean[feature_columns]
-            y = df_clean[
-                f"target_return_{target_days}d"
-            ]  # Predict returns instead of absolute prices
+            y = df_clean[f"target_return_{target_days}d"]  # Predict returns instead of absolute prices
 
             # Split data for training and validation
             split_idx = int(len(X) * 0.8)
@@ -200,7 +179,8 @@ class PriceForecaster:
             elif model_type == "linear_regression":
                 model = LinearRegression()
             else:
-                raise ValueError(f"Unknown model type: {model_type}")
+                msg = f"Unknown model type: {model_type}"
+                raise ValueError(msg)
 
             model.fit(X_train_scaled, y_train)
 
@@ -221,9 +201,7 @@ class PriceForecaster:
 
             # Feature importance (for random forest)
             if model_type == "random_forest":
-                feature_importance = dict(
-                    zip(feature_columns, model.feature_importances_)
-                )
+                feature_importance = dict(zip(feature_columns, model.feature_importances_, strict=False))
                 self.feature_importance[model_key] = feature_importance
 
             metrics = {
@@ -241,13 +219,11 @@ class PriceForecaster:
                 "training_date": datetime.now(),
             }
 
-            logger.info(
-                f"Trained {model_type} model for {symbol}: Val R2={val_r2:.3f}, Val MSE={val_mse:.6f}"
-            )
+            logger.info(f"Trained {model_type} model for {symbol}: Val R2={val_r2:.3f}, Val MSE={val_mse:.6f}")
             return metrics
 
         except Exception as e:
-            logger.error(f"Error training model for {symbol}: {e}")
+            logger.exception(f"Error training model for {symbol}: {e}")
             raise
 
     def predict_price(
@@ -256,7 +232,7 @@ class PriceForecaster:
         data: pd.DataFrame,
         model_type: str = "random_forest",
         target_days: int = 1,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Predict future price for a symbol
 
@@ -273,7 +249,8 @@ class PriceForecaster:
             model_key = f"{symbol}_{model_type}_{target_days}d"
 
             if model_key not in self.models:
-                raise ValueError(f"No trained model found for {model_key}")
+                msg = f"No trained model found for {model_key}"
+                raise ValueError(msg)
 
             model = self.models[model_key]
             scaler = self.scalers[model_key]
@@ -285,12 +262,7 @@ class PriceForecaster:
             latest_data = df_features.iloc[-1:]
 
             # Select features (same as training)
-            feature_columns = [
-                col
-                for col in df_features.columns
-                if col not in ["date", "target_price_1d", "target_return_1d", "close"]
-                and not col.startswith("target_")
-            ]
+            feature_columns = [col for col in df_features.columns if col not in ["date", "target_price_1d", "target_return_1d", "close"] and not col.startswith("target_")]
 
             X_latest = latest_data[feature_columns]
 
@@ -334,16 +306,16 @@ class PriceForecaster:
             return prediction_result
 
         except Exception as e:
-            logger.error(f"Error predicting price for {symbol}: {e}")
+            logger.exception(f"Error predicting price for {symbol}: {e}")
             raise
 
     def batch_predict(
         self,
-        symbols: List[str],
+        symbols: list[str],
         model_type: str = "random_forest",
         target_days: int = 1,
         min_data_points: int = 100,
-    ) -> Dict[str, Dict[str, Any]]:
+    ) -> dict[str, dict[str, Any]]:
         """
         Make predictions for multiple symbols
 
@@ -362,9 +334,7 @@ class PriceForecaster:
             try:
                 # Get recent data for the symbol
                 end_date = datetime.now().date()
-                start_date = end_date - timedelta(
-                    days=200
-                )  # Get enough data for features
+                start_date = end_date - timedelta(days=200)  # Get enough data for features
 
                 data = self.alpaca_client.stock.history.get_stock_data(
                     symbol=symbol,
@@ -374,9 +344,7 @@ class PriceForecaster:
                 )
 
                 if len(data) < min_data_points:
-                    logger.warning(
-                        f"Insufficient data for {symbol}: {len(data)} points"
-                    )
+                    logger.warning(f"Insufficient data for {symbol}: {len(data)} points")
                     continue
 
                 # Check if model exists, if not train it
@@ -390,17 +358,17 @@ class PriceForecaster:
                 predictions[symbol] = prediction
 
             except Exception as e:
-                logger.error(f"Error in batch prediction for {symbol}: {e}")
+                logger.exception(f"Error in batch prediction for {symbol}: {e}")
                 predictions[symbol] = {"error": str(e), "symbol": symbol}
 
         return predictions
 
     def get_forecast_signals(
         self,
-        predictions: Dict[str, Dict[str, Any]],
+        predictions: dict[str, dict[str, Any]],
         min_confidence: float = 0.6,
         min_return_threshold: float = 0.03,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Convert price predictions to trading signals
 
@@ -431,9 +399,7 @@ class PriceForecaster:
                         "symbol": symbol,
                         "strategy_name": "price_forecast",
                         "signal_type": "buy",
-                        "strength": min(
-                            1.0, predicted_return / 0.1
-                        ),  # Scale by 10% max return
+                        "strength": min(1.0, predicted_return / 0.1),  # Scale by 10% max return
                         "confidence": confidence,
                         "price": prediction["current_price"],
                         "timestamp": datetime.now(),
@@ -473,10 +439,10 @@ class PriceForecaster:
 
     def retrain_models(
         self,
-        symbols: List[str],
+        symbols: list[str],
         model_type: str = "random_forest",
         target_days: int = 1,
-    ) -> Dict[str, Dict[str, Any]]:
+    ) -> dict[str, dict[str, Any]]:
         """
         Retrain models for symbols with fresh data
 
@@ -494,9 +460,7 @@ class PriceForecaster:
             try:
                 # Get fresh data
                 end_date = datetime.now().date()
-                start_date = end_date - timedelta(
-                    days=500
-                )  # Get more data for better training
+                start_date = end_date - timedelta(days=500)  # Get more data for better training
 
                 data = self.alpaca_client.stock.history.get_stock_data(
                     symbol=symbol,
@@ -510,12 +474,12 @@ class PriceForecaster:
                 results[symbol] = metrics
 
             except Exception as e:
-                logger.error(f"Error retraining model for {symbol}: {e}")
+                logger.exception(f"Error retraining model for {symbol}: {e}")
                 results[symbol] = {"error": str(e), "symbol": symbol}
 
         return results
 
-    def get_model_performance_summary(self) -> Dict[str, Any]:
+    def get_model_performance_summary(self) -> dict[str, Any]:
         """Get summary of all trained models' performance"""
         summary = {
             "total_models": len(self.models),

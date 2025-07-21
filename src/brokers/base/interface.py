@@ -3,10 +3,10 @@ Base Broker Interface and Common Types
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from typing import Any
 
 
 class OrderSide(Enum):
@@ -55,13 +55,13 @@ class OrderRequest:
     quantity: float
     side: OrderSide
     order_type: OrderType
-    price: Optional[float] = None
-    stop_price: Optional[float] = None
+    price: float | None = None
+    stop_price: float | None = None
     time_in_force: TimeInForce = TimeInForce.DAY
     extended_hours: bool = False
-    take_profit: Optional[float] = None
-    stop_loss: Optional[float] = None
-    client_order_id: Optional[str] = None
+    take_profit: float | None = None
+    stop_loss: float | None = None
+    client_order_id: str | None = None
 
 
 @dataclass
@@ -69,16 +69,16 @@ class OrderResponse:
     """Standardized order response structure"""
 
     order_id: str
-    client_order_id: Optional[str]
+    client_order_id: str | None
     symbol: str
     quantity: float
     side: OrderSide
     order_type: OrderType
     status: OrderStatus
     filled_qty: float = 0.0
-    avg_fill_price: Optional[float] = None
-    timestamp: Optional[datetime] = None
-    broker_specific_data: Optional[Dict[str, Any]] = None
+    avg_fill_price: float | None = None
+    timestamp: datetime | None = None
+    broker_specific_data: dict[str, Any] | None = None
 
 
 @dataclass
@@ -94,7 +94,7 @@ class Position:
     current_price: float
     entry_price: float
     side: str = "long"  # long or short
-    broker_specific_data: Optional[Dict[str, Any]] = None
+    broker_specific_data: dict[str, Any] | None = None
 
 
 @dataclass
@@ -108,7 +108,7 @@ class AccountInfo:
     equity: float
     day_trading_power: float
     pattern_day_trader: bool
-    broker_specific_data: Optional[Dict[str, Any]] = None
+    broker_specific_data: dict[str, Any] | None = None
 
 
 @dataclass
@@ -121,7 +121,7 @@ class Quote:
     bid_size: int
     ask_size: int
     timestamp: datetime
-    broker_specific_data: Optional[Dict[str, Any]] = None
+    broker_specific_data: dict[str, Any] | None = None
 
 
 @dataclass
@@ -135,8 +135,8 @@ class BarData:
     low: float
     close: float
     volume: int
-    vwap: Optional[float] = None
-    trade_count: Optional[int] = None
+    vwap: float | None = None
+    trade_count: int | None = None
 
 
 @dataclass
@@ -146,14 +146,14 @@ class MarketData:
     symbol: str
     price: float
     timestamp: datetime
-    open: Optional[float] = None
-    high: Optional[float] = None
-    low: Optional[float] = None
-    close: Optional[float] = None
-    volume: Optional[int] = None
-    vwap: Optional[float] = None
-    trade_count: Optional[int] = None
-    broker_specific_data: Optional[Dict[str, Any]] = None
+    open: float | None = None
+    high: float | None = None
+    low: float | None = None
+    close: float | None = None
+    volume: int | None = None
+    vwap: float | None = None
+    trade_count: int | None = None
+    broker_specific_data: dict[str, Any] | None = None
 
 
 @dataclass
@@ -169,7 +169,7 @@ class Asset:
     shortable: bool = False
     easy_to_borrow: bool = False
     fractionable: bool = False
-    broker_specific_data: Optional[Dict[str, Any]] = None
+    broker_specific_data: dict[str, Any] | None = None
 
 
 class BrokerAdapter(ABC):
@@ -179,102 +179,84 @@ class BrokerAdapter(ABC):
     @abstractmethod
     def broker_name(self) -> str:
         """Return the broker name"""
-        pass
 
     @abstractmethod
     async def connect(self) -> bool:
         """Connect to the broker API"""
-        pass
 
     @abstractmethod
     async def disconnect(self) -> None:
         """Disconnect from the broker API"""
-        pass
 
     @abstractmethod
     async def is_connected(self) -> bool:
         """Check if connected to broker"""
-        pass
 
     # Order Management
     @abstractmethod
     async def place_order(self, order_request: OrderRequest) -> OrderResponse:
         """Place a trading order"""
-        pass
 
     @abstractmethod
     async def cancel_order(self, order_id: str) -> bool:
         """Cancel an existing order"""
-        pass
 
     @abstractmethod
-    async def get_order_status(self, order_id: str) -> Optional[OrderResponse]:
+    async def get_order_status(self, order_id: str) -> OrderResponse | None:
         """Get the status of an order"""
-        pass
 
     @abstractmethod
-    async def get_orders(
-        self, status: Optional[OrderStatus] = None, limit: int = 100
-    ) -> List[OrderResponse]:
+    async def get_orders(self, status: OrderStatus | None = None, limit: int = 100) -> list[OrderResponse]:
         """Get orders with optional status filter"""
-        pass
 
     # Account Management
     @abstractmethod
     async def get_account_info(self) -> AccountInfo:
         """Get account information"""
-        pass
 
     @abstractmethod
-    async def get_positions(self) -> List[Position]:
+    async def get_positions(self) -> list[Position]:
         """Get all current positions"""
-        pass
 
     @abstractmethod
-    async def get_position(self, symbol: str) -> Optional[Position]:
+    async def get_position(self, symbol: str) -> Position | None:
         """Get position for a specific symbol"""
-        pass
 
     # Market Data
     @abstractmethod
-    async def get_quote(self, symbol: str) -> Optional[Quote]:
+    async def get_quote(self, symbol: str) -> Quote | None:
         """Get real-time quote for a symbol"""
-        pass
 
     @abstractmethod
-    async def get_quotes(self, symbols: List[str]) -> Dict[str, Quote]:
+    async def get_quotes(self, symbols: list[str]) -> dict[str, Quote]:
         """Get real-time quotes for multiple symbols"""
-        pass
 
     @abstractmethod
     async def get_bars(
         self,
         symbol: str,
         timeframe: str = "1D",
-        start: Optional[datetime] = None,
-        end: Optional[datetime] = None,
+        start: datetime | None = None,
+        end: datetime | None = None,
         limit: int = 100,
-    ) -> List[BarData]:
+    ) -> list[BarData]:
         """Get historical bar data for a symbol"""
-        pass
 
     # Market Status
     @abstractmethod
     async def is_market_open(self) -> bool:
         """Check if market is currently open"""
-        pass
 
     @abstractmethod
-    async def get_market_hours(self, date: Optional[datetime] = None) -> Dict[str, Any]:
+    async def get_market_hours(self, date: datetime | None = None) -> dict[str, Any]:
         """Get market hours for a specific date"""
-        pass
 
     # Watchlists (optional - not all brokers support this)
-    async def get_watchlists(self) -> List[Dict[str, Any]]:
+    async def get_watchlists(self) -> list[dict[str, Any]]:
         """Get user watchlists - optional implementation"""
         return []
 
-    async def create_watchlist(self, name: str, symbols: List[str]) -> bool:
+    async def create_watchlist(self, name: str, symbols: list[str]) -> bool:
         """Create a new watchlist - optional implementation"""
         return False
 
@@ -286,28 +268,18 @@ class BrokerAdapter(ABC):
 class BrokerError(Exception):
     """Base broker error"""
 
-    pass
-
 
 class BrokerConnectionError(BrokerError):
     """Broker connection error"""
-
-    pass
 
 
 class BrokerAuthError(BrokerError):
     """Broker authentication error"""
 
-    pass
-
 
 class BrokerOrderError(BrokerError):
     """Broker order-related error"""
 
-    pass
-
 
 class BrokerDataError(BrokerError):
     """Broker data-related error"""
-
-    pass

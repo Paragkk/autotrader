@@ -3,10 +3,11 @@ Stock Scorer - Comprehensive Stock Scoring System
 """
 
 import logging
-from typing import Dict, List, Any
-from datetime import datetime
-import pandas as pd
 from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any
+
+import pandas as pd
 from sqlmodel import Session
 
 from db.models import StockScore
@@ -38,7 +39,8 @@ class ScoringFactors:
             ]
         )
         if abs(total - 1.0) > 0.01:
-            raise ValueError(f"Scoring factors must sum to 1.0, got {total}")
+            msg = f"Scoring factors must sum to 1.0, got {total}"
+            raise ValueError(msg)
 
 
 @dataclass
@@ -47,24 +49,22 @@ class StockScoreResult:
 
     symbol: str
     total_score: float
-    factor_scores: Dict[str, float] = field(default_factory=dict)
+    factor_scores: dict[str, float] = field(default_factory=dict)
     confidence: float = 0.0
     timestamp: datetime = field(default_factory=datetime.now)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class StockScorer:
     """Comprehensive stock scoring system"""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]) -> None:
         self.config = config
         self.factors = ScoringFactors(**config.get("factors", {}))
         self.top_n_stocks = config.get("top_n_stocks", 30)
         self.min_score_threshold = config.get("min_score_threshold", 0.5)
 
-    def score_stocks(
-        self, screened_stocks: List[Dict[str, Any]]
-    ) -> List[StockScoreResult]:
+    def score_stocks(self, screened_stocks: list[dict[str, Any]]) -> list[StockScoreResult]:
         """Score a list of screened stocks"""
         if not screened_stocks:
             return []
@@ -84,7 +84,7 @@ class StockScorer:
 
         # Combine scores
         results = []
-        for i, row in df.iterrows():
+        for _i, row in df.iterrows():
             symbol = row["symbol"]
 
             factor_scores = {
@@ -129,16 +129,12 @@ class StockScorer:
         top_results = results[: self.top_n_stocks]
 
         # Filter by minimum score threshold
-        filtered_results = [
-            r for r in top_results if r.total_score >= self.min_score_threshold
-        ]
+        filtered_results = [r for r in top_results if r.total_score >= self.min_score_threshold]
 
-        logger.info(
-            f"Scored {len(results)} stocks, returning top {len(filtered_results)} with score >= {self.min_score_threshold}"
-        )
+        logger.info(f"Scored {len(results)} stocks, returning top {len(filtered_results)} with score >= {self.min_score_threshold}")
         return filtered_results
 
-    def _calculate_momentum_scores(self, df: pd.DataFrame) -> Dict[str, float]:
+    def _calculate_momentum_scores(self, df: pd.DataFrame) -> dict[str, float]:
         """Calculate momentum scores based on price changes"""
         scores = {}
 
@@ -151,15 +147,13 @@ class StockScorer:
             if daily_change > 0:
                 score = min(1.0, daily_change / 10.0)  # Cap at 10% change
             else:
-                score = max(
-                    0.0, 1.0 + daily_change / 10.0
-                )  # Decay for negative changes
+                score = max(0.0, 1.0 + daily_change / 10.0)  # Decay for negative changes
 
             scores[symbol] = score
 
         return scores
 
-    def _calculate_volume_scores(self, df: pd.DataFrame) -> Dict[str, float]:
+    def _calculate_volume_scores(self, df: pd.DataFrame) -> dict[str, float]:
         """Calculate volume scores based on trading volume"""
         scores = {}
 
@@ -173,7 +167,7 @@ class StockScorer:
 
         return scores
 
-    def _calculate_volatility_scores(self, df: pd.DataFrame) -> Dict[str, float]:
+    def _calculate_volatility_scores(self, df: pd.DataFrame) -> dict[str, float]:
         """Calculate volatility scores (moderate volatility preferred)"""
         scores = {}
 
@@ -195,7 +189,7 @@ class StockScorer:
 
         return scores
 
-    def _calculate_technical_scores(self, df: pd.DataFrame) -> Dict[str, float]:
+    def _calculate_technical_scores(self, df: pd.DataFrame) -> dict[str, float]:
         """Calculate technical analysis scores"""
         scores = {}
 
@@ -220,7 +214,7 @@ class StockScorer:
 
         return scores
 
-    def _calculate_sentiment_scores(self, df: pd.DataFrame) -> Dict[str, float]:
+    def _calculate_sentiment_scores(self, df: pd.DataFrame) -> dict[str, float]:
         """Calculate sentiment scores (placeholder for now)"""
         scores = {}
 
@@ -231,7 +225,7 @@ class StockScorer:
 
         return scores
 
-    def _calculate_fundamental_scores(self, df: pd.DataFrame) -> Dict[str, float]:
+    def _calculate_fundamental_scores(self, df: pd.DataFrame) -> dict[str, float]:
         """Calculate fundamental analysis scores"""
         scores = {}
 
@@ -259,9 +253,7 @@ class StockScorer:
 
         return scores
 
-    def _calculate_confidence(
-        self, factor_scores: Dict[str, float], row: pd.Series
-    ) -> float:
+    def _calculate_confidence(self, factor_scores: dict[str, float], row: pd.Series) -> float:
         """Calculate confidence score based on data completeness"""
         # Count how many factors have meaningful scores
         meaningful_factors = sum(1 for score in factor_scores.values() if score != 0.5)
@@ -278,7 +270,7 @@ class StockScorer:
 
         return min(1.0, base_confidence)
 
-    def save_scores(self, db_session: Session, scores: List[StockScoreResult]) -> None:
+    def save_scores(self, db_session: Session, scores: list[StockScoreResult]) -> None:
         """Save stock scores to database"""
         try:
             for score_result in scores:
@@ -290,9 +282,7 @@ class StockScorer:
                     volatility_score=score_result.factor_scores.get("volatility", 0.0),
                     technical_score=score_result.factor_scores.get("technical", 0.0),
                     sentiment_score=score_result.factor_scores.get("sentiment", 0.0),
-                    fundamental_score=score_result.factor_scores.get(
-                        "fundamentals", 0.0
-                    ),
+                    fundamental_score=score_result.factor_scores.get("fundamentals", 0.0),
                     confidence=score_result.confidence,
                     metadata=score_result.metadata,
                     timestamp=score_result.timestamp,
@@ -305,17 +295,13 @@ class StockScorer:
 
         except Exception as e:
             db_session.rollback()
-            logger.error(f"Error saving stock scores: {e}")
+            logger.exception(f"Error saving stock scores: {e}")
             raise
 
-    def get_top_scored_stocks(
-        self, db_session: Session, limit: int = None
-    ) -> List[Dict[str, Any]]:
+    def get_top_scored_stocks(self, db_session: Session, limit: int | None = None) -> list[dict[str, Any]]:
         """Get top scored stocks from database"""
         try:
-            query = db_session.query(StockScore).order_by(
-                StockScore.total_score.desc(), StockScore.timestamp.desc()
-            )
+            query = db_session.query(StockScore).order_by(StockScore.total_score.desc(), StockScore.timestamp.desc())
 
             if limit:
                 query = query.limit(limit)
@@ -334,5 +320,5 @@ class StockScorer:
             ]
 
         except Exception as e:
-            logger.error(f"Error getting top scored stocks: {e}")
+            logger.exception(f"Error getting top scored stocks: {e}")
             return []

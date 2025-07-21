@@ -29,20 +29,21 @@ Supported base classes for auto-discovery:
 - BrokerConfigurationMixin
 """
 
-import os
-import yaml
-from pathlib import Path
-from typing import Dict, Any, Union, List
-import logging
 import importlib
 import inspect
+import logging
+import os
+from pathlib import Path
+from typing import Any
+
+import yaml
 
 from .path_utils import get_project_root
 
 logger = logging.getLogger(__name__)
 
 
-def resolve_config_path(config_path: Union[str, Path, None] = None) -> Path:
+def resolve_config_path(config_path: str | Path | None = None) -> Path:
     """
     Resolve configuration file path relative to project root.
 
@@ -77,7 +78,7 @@ def resolve_config_path(config_path: Union[str, Path, None] = None) -> Path:
     return full_path
 
 
-def load_config(config_path: Union[str, Path, None] = None) -> Dict[str, Any]:
+def load_config(config_path: str | Path | None = None) -> dict[str, Any]:
     """
     Load configuration from the consolidated YAML file with environment variable overrides.
 
@@ -95,33 +96,32 @@ def load_config(config_path: Union[str, Path, None] = None) -> Dict[str, Any]:
     resolved_path = resolve_config_path(config_path)
 
     if not resolved_path.exists():
-        raise FileNotFoundError(f"Configuration file not found: {resolved_path}")
+        msg = f"Configuration file not found: {resolved_path}"
+        raise FileNotFoundError(msg)
 
     try:
         with resolved_path.open("r", encoding="utf-8") as f:
             config_data = yaml.safe_load(f) or {}
     except yaml.YAMLError as e:
-        raise yaml.YAMLError(f"Invalid YAML in configuration file {resolved_path}: {e}")
+        msg = f"Invalid YAML in configuration file {resolved_path}: {e}"
+        raise yaml.YAMLError(msg)
 
     # Validate that we have broker configuration
     if "brokers" not in config_data:
-        raise ValueError("No 'brokers' section found in configuration")
+        msg = "No 'brokers' section found in configuration"
+        raise ValueError(msg)
 
     # Validate that we have broker configuration
     brokers_config = config_data["brokers"]
     if not brokers_config:
-        raise ValueError(
-            "No brokers found in configuration. "
-            "At least one broker must be configured to use the trading system."
-        )
+        msg = "No brokers found in configuration. At least one broker must be configured to use the trading system."
+        raise ValueError(msg)
 
     logger.info(f"✅ Configuration loaded from {resolved_path}")
     return config_data
 
 
-def get_broker_config(
-    broker_name: str, config_data: Dict[str, Any] = None
-) -> Dict[str, Any]:
+def get_broker_config(broker_name: str, config_data: dict[str, Any] | None = None) -> dict[str, Any]:
     """
     Get configuration for a specific broker.
 
@@ -142,11 +142,9 @@ def get_broker_config(
     brokers_config = config_data.get("brokers", {})
 
     if broker_name not in brokers_config:
-        available_brokers = [k for k in brokers_config.keys() if k != "default"]
-        raise ValueError(
-            f"Broker '{broker_name}' not found in configuration. "
-            f"Available brokers: {available_brokers}"
-        )
+        available_brokers = [k for k in brokers_config if k != "default"]
+        msg = f"Broker '{broker_name}' not found in configuration. Available brokers: {available_brokers}"
+        raise ValueError(msg)
 
     broker_config = brokers_config[broker_name].copy()
     broker_config["broker_name"] = broker_name
@@ -164,15 +162,13 @@ def get_broker_config(
 
     # Raise error if any required environment variables are missing
     if missing_env_vars:
-        raise EnvironmentError(
-            f"Missing required environment variables for broker '{broker_name}': "
-            f"{', '.join(missing_env_vars)}. Please set these environment variables."
-        )
+        msg = f"Missing required environment variables for broker '{broker_name}': {', '.join(missing_env_vars)}. Please set these environment variables."
+        raise OSError(msg)
 
     return broker_config
 
 
-def get_active_brokers(config_data: Dict[str, Any] = None) -> List[str]:
+def get_active_brokers(config_data: dict[str, Any] | None = None) -> list[str]:
     """
     Get list of available brokers.
 
@@ -195,7 +191,7 @@ def get_active_brokers(config_data: Dict[str, Any] = None) -> List[str]:
     return available_brokers
 
 
-def get_alert_config(config_data: Dict[str, Any] = None) -> Dict[str, Any]:
+def get_alert_config(config_data: dict[str, Any] | None = None) -> dict[str, Any]:
     """
     Get alert configuration with environment variables loaded.
 
@@ -225,7 +221,7 @@ def get_alert_config(config_data: Dict[str, Any] = None) -> Dict[str, Any]:
     return alert_config
 
 
-def get_database_config(config_data: Dict[str, Any] = None) -> Dict[str, Any]:
+def get_database_config(config_data: dict[str, Any] | None = None) -> dict[str, Any]:
     """
     Get database configuration with environment variable override.
 
@@ -248,7 +244,7 @@ def get_database_config(config_data: Dict[str, Any] = None) -> Dict[str, Any]:
     return db_config
 
 
-def get_first_active_broker(config_data: Dict[str, Any] = None) -> str:
+def get_first_active_broker(config_data: dict[str, Any] | None = None) -> str:
     """
     Get the first available broker.
 
@@ -267,13 +263,12 @@ def get_first_active_broker(config_data: Dict[str, Any] = None) -> str:
     """
     active_brokers = get_active_brokers(config_data)
     if not active_brokers:
-        raise ValueError(
-            "No brokers found. Please configure at least one broker in the configuration."
-        )
+        msg = "No brokers found. Please configure at least one broker in the configuration."
+        raise ValueError(msg)
     return active_brokers[0]
 
 
-def get_active_broker(config_data: Dict[str, Any] = None) -> str:
+def get_active_broker(config_data: dict[str, Any] | None = None) -> str:
     """
     Get the currently active broker based on environment variable or first configured broker.
 
@@ -300,20 +295,18 @@ def get_active_broker(config_data: Dict[str, Any] = None) -> str:
             # If environment specifies a broker, use it (even if disabled in config)
             # This allows users to override config via environment
             return active_broker
-        else:
-            logger.warning(
-                f"Environment broker '{active_broker}' not found in config. Using default."
-            )
+        logger.warning(f"Environment broker '{active_broker}' not found in config. Using default.")
 
     # Fallback to first available broker in config
     available_brokers = list(brokers_config.keys())
     if available_brokers:
         return available_brokers[0]
 
-    raise ValueError("No brokers available in configuration")
+    msg = "No brokers available in configuration"
+    raise ValueError(msg)
 
 
-def is_broker_configured(broker_name: str, config_data: Dict[str, Any] = None) -> bool:
+def is_broker_configured(broker_name: str, config_data: dict[str, Any] | None = None) -> bool:
     """
     Check if a broker is configured.
 
@@ -336,9 +329,7 @@ def is_broker_configured(broker_name: str, config_data: Dict[str, Any] = None) -
     return isinstance(broker_config, dict)
 
 
-def validate_broker_env_vars(
-    broker_name: str, config_data: Dict[str, Any] = None
-) -> bool:
+def validate_broker_env_vars(broker_name: str, config_data: dict[str, Any] | None = None) -> bool:
     """
     Validate that all required environment variables are set for a broker.
 
@@ -359,32 +350,26 @@ def validate_broker_env_vars(
     brokers_config = config_data.get("brokers", {})
 
     if broker_name not in brokers_config:
-        available_brokers = [k for k in brokers_config.keys()]
-        raise ValueError(
-            f"Broker '{broker_name}' not found in configuration. "
-            f"Available brokers: {available_brokers}"
-        )
+        available_brokers = list(brokers_config.keys())
+        msg = f"Broker '{broker_name}' not found in configuration. Available brokers: {available_brokers}"
+        raise ValueError(msg)
 
     broker_config = brokers_config[broker_name]
     env_vars = broker_config.get("env_vars", {})
     missing_env_vars = []
 
-    for config_key, env_var_name in env_vars.items():
+    for _config_key, env_var_name in env_vars.items():
         if os.getenv(env_var_name) is None:
             missing_env_vars.append(env_var_name)
 
     if missing_env_vars:
-        raise EnvironmentError(
-            f"Missing required environment variables for broker '{broker_name}': "
-            f"{', '.join(missing_env_vars)}. Please set these environment variables."
-        )
+        msg = f"Missing required environment variables for broker '{broker_name}': {', '.join(missing_env_vars)}. Please set these environment variables."
+        raise OSError(msg)
 
     return True
 
 
-def get_broker_env_vars(
-    broker_name: str, config_data: Dict[str, Any] = None
-) -> Dict[str, str]:
+def get_broker_env_vars(broker_name: str, config_data: dict[str, Any] | None = None) -> dict[str, str]:
     """
     Get the environment variable mappings for a specific broker.
 
@@ -404,17 +389,15 @@ def get_broker_env_vars(
     brokers_config = config_data.get("brokers", {})
 
     if broker_name not in brokers_config:
-        available_brokers = [k for k in brokers_config.keys()]
-        raise ValueError(
-            f"Broker '{broker_name}' not found in configuration. "
-            f"Available brokers: {available_brokers}"
-        )
+        available_brokers = list(brokers_config.keys())
+        msg = f"Broker '{broker_name}' not found in configuration. Available brokers: {available_brokers}"
+        raise ValueError(msg)
 
     broker_config = brokers_config[broker_name]
     return broker_config.get("env_vars", {})
 
 
-def validate_broker_config(broker_name: str, config: Dict[str, Any]) -> bool:
+def validate_broker_config(broker_name: str, config: dict[str, Any]) -> bool:
     """
     Validate broker configuration structure and required fields.
 
@@ -434,14 +417,10 @@ def validate_broker_config(broker_name: str, config: Dict[str, Any]) -> bool:
 
     if not required_fields:
         # Fallback to basic validation if no broker config found
-        logger.warning(
-            f"No required fields config found for {broker_name}, using basic validation"
-        )
+        logger.warning(f"No required fields config found for {broker_name}, using basic validation")
         return _validate_basic_broker_config(broker_name, config)
 
-    logger.debug(
-        f"Validating {broker_name} config with required fields: {required_fields}"
-    )
+    logger.debug(f"Validating {broker_name} config with required fields: {required_fields}")
     logger.debug(f"Available config keys: {list(config.keys())}")
 
     # Check for missing required fields
@@ -492,39 +471,26 @@ def _discover_broker_adapter(broker_name: str):
         if not broker_path.exists():
             # List available brokers
             brokers_path = get_project_root() / "src" / "brokers"
-            available_brokers = [
-                d.name
-                for d in brokers_path.iterdir()
-                if d.is_dir()
-                and not d.name.startswith((".", "__"))
-                and d.name not in ("base", "common")
-            ]
-            raise ValueError(
-                f"Broker '{broker_name}' not found. Available brokers: {available_brokers}"
-            )
-        else:
-            raise ImportError(
-                f"Could not import adapter for broker '{broker_name}': {e}"
-            )
+            available_brokers = [d.name for d in brokers_path.iterdir() if d.is_dir() and not d.name.startswith((".", "__")) and d.name not in ("base", "common")]
+            msg = f"Broker '{broker_name}' not found. Available brokers: {available_brokers}"
+            raise ValueError(msg)
+        msg = f"Could not import adapter for broker '{broker_name}': {e}"
+        raise ImportError(msg)
 
     # Find the adapter class in the module
     adapter_class = None
 
     # Look for classes that inherit from BrokerAdapter or related base classes
-    for name, obj in inspect.getmembers(adapter_module, inspect.isclass):
+    for _name, obj in inspect.getmembers(adapter_module, inspect.isclass):
         if obj.__module__ == adapter_module.__name__ and _is_broker_adapter_class(obj):
             adapter_class = obj
             break
 
     if adapter_class is None:
         # Get list of classes in the module for debugging
-        classes_in_module = [
-            name
-            for name, obj in inspect.getmembers(adapter_module, inspect.isclass)
-            if obj.__module__ == adapter_module.__name__
-        ]
+        classes_in_module = [name for name, obj in inspect.getmembers(adapter_module, inspect.isclass) if obj.__module__ == adapter_module.__name__]
 
-        raise ValueError(
+        msg = (
             f"No broker adapter class found in {module_path}. "
             f"Expected a class inheriting from BrokerAdapter or related base classes. "
             f"Classes found in module: {classes_in_module}. "
@@ -532,6 +498,7 @@ def _discover_broker_adapter(broker_name: str):
             f"BrokerAdapter, RESTBrokerAdapter, OrderValidationMixin, "
             f"PositionTrackingMixin, or BrokerConfigurationMixin."
         )
+        raise ValueError(msg)
 
     logger.info(f"✅ Discovered broker adapter: {adapter_class.__name__}")
     return adapter_class
@@ -563,7 +530,7 @@ def _is_broker_adapter_class(cls) -> bool:
     return bool(adapter_indicators.intersection(base_class_names))
 
 
-def create_broker_adapter(broker_name: str, config: Dict[str, Any]):
+def create_broker_adapter(broker_name: str, config: dict[str, Any]):
     """
     Create a broker adapter instance with validation.
 
@@ -582,17 +549,18 @@ def create_broker_adapter(broker_name: str, config: Dict[str, Any]):
 
     # Validate configuration before creating adapter
     if not validate_broker_config(broker_name, config):
-        raise ValueError(f"Invalid configuration for broker: {broker_name}")
+        msg = f"Invalid configuration for broker: {broker_name}"
+        raise ValueError(msg)
 
     try:
         logger.info(f"✅ Creating {broker_name} broker adapter")
         return adapter_class(config)
     except Exception as e:
-        logger.error(f"❌ Failed to create {broker_name} broker adapter: {e}")
+        logger.exception(f"❌ Failed to create {broker_name} broker adapter: {e}")
         raise
 
 
-def get_supported_brokers_from_code() -> List[str]:
+def get_supported_brokers_from_code() -> list[str]:
     """
     Get list of brokers that have code implementations.
 
@@ -611,11 +579,7 @@ def get_supported_brokers_from_code() -> List[str]:
         supported_brokers = []
 
         for broker_dir in brokers_path.iterdir():
-            if (
-                broker_dir.is_dir()
-                and not broker_dir.name.startswith((".", "__"))
-                and broker_dir.name not in ("base", "common")
-            ):
+            if broker_dir.is_dir() and not broker_dir.name.startswith((".", "__")) and broker_dir.name not in ("base", "common"):
                 # Check if adapter.py exists
                 adapter_file = broker_dir / "adapter.py"
                 if adapter_file.exists():
@@ -625,7 +589,7 @@ def get_supported_brokers_from_code() -> List[str]:
         return supported_brokers
 
     except Exception as e:
-        logger.error(f"❌ Error discovering broker implementations: {e}")
+        logger.exception(f"❌ Error discovering broker implementations: {e}")
         # Fallback to known brokers
         return ["alpaca", "demo_broker"]
 
@@ -643,7 +607,7 @@ def is_broker_supported(broker_name: str) -> bool:
     return broker_name.lower() in get_supported_brokers_from_code()
 
 
-def _get_broker_required_fields(broker_name: str) -> List[str]:
+def _get_broker_required_fields(broker_name: str) -> list[str]:
     """
     Load required fields from broker-specific configuration file.
 
@@ -656,14 +620,10 @@ def _get_broker_required_fields(broker_name: str) -> List[str]:
     try:
         from .path_utils import get_project_root
 
-        broker_config_path = (
-            get_project_root() / "src" / "brokers" / broker_name.lower() / "config.yaml"
-        )
+        broker_config_path = get_project_root() / "src" / "brokers" / broker_name.lower() / "config.yaml"
 
         if not broker_config_path.exists():
-            logger.warning(
-                f"No config.yaml found for broker {broker_name} at {broker_config_path}"
-            )
+            logger.warning(f"No config.yaml found for broker {broker_name} at {broker_config_path}")
             return []
 
         with broker_config_path.open("r", encoding="utf-8") as f:
@@ -674,11 +634,11 @@ def _get_broker_required_fields(broker_name: str) -> List[str]:
         return required_fields
 
     except Exception as e:
-        logger.error(f"Error loading broker config for {broker_name}: {e}")
+        logger.exception(f"Error loading broker config for {broker_name}: {e}")
         return []
 
 
-def _get_field_variants(field: str, broker_name: str) -> List[str]:
+def _get_field_variants(field: str, broker_name: str) -> list[str]:
     """
     Generate field name variants to check for flexibility.
 
@@ -707,7 +667,7 @@ def _get_field_variants(field: str, broker_name: str) -> List[str]:
     return list(set(variants))  # Remove duplicates
 
 
-def _validate_basic_broker_config(broker_name: str, config: Dict[str, Any]) -> bool:
+def _validate_basic_broker_config(broker_name: str, config: dict[str, Any]) -> bool:
     """
     Fallback basic validation when broker-specific config is not available.
 

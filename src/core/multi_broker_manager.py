@@ -4,16 +4,15 @@ Coordinates operations across multiple brokers using a single database
 """
 
 import logging
-from typing import Dict, List, Optional, Any, Tuple
-from datetime import datetime
 from dataclasses import dataclass
-
-from src.brokers.base import BrokerAdapter
-from src.infra.config import create_broker_adapter
-from src.db.models import BrokerAccount, Order, Position
+from datetime import datetime
 
 # Import for type hinting
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
+from src.brokers.base import BrokerAdapter
+from src.db.models import BrokerAccount, Order, Position
+from src.infra.config import create_broker_adapter
 
 if TYPE_CHECKING:
     from src.db.repository import BrokerRepository
@@ -35,15 +34,15 @@ class MultiBrokerManager:
     Manages multiple brokers using a unified database approach
     """
 
-    def __init__(self, config: Dict[str, Any], repository: "BrokerRepository"):
+    def __init__(self, config: dict[str, Any], repository: "BrokerRepository") -> None:
         self.config = config
         self.repository = repository
-        self.brokers: Dict[str, BrokerAllocation] = {}
+        self.brokers: dict[str, BrokerAllocation] = {}
 
         # Initialize brokers
         self._initialize_brokers()
 
-    def _initialize_brokers(self):
+    def _initialize_brokers(self) -> None:
         """Initialize all configured brokers"""
         brokers_config = self.config.get("brokers", {})
 
@@ -60,14 +59,12 @@ class MultiBrokerManager:
                 )
 
                 self.brokers[broker_name] = allocation
-                logger.info(
-                    f"✅ Initialized broker: {broker_name} ({allocation.allocation_percent * 100}% allocation)"
-                )
+                logger.info(f"✅ Initialized broker: {broker_name} ({allocation.allocation_percent * 100}% allocation)")
 
             except Exception as e:
-                logger.error(f"❌ Failed to initialize broker {broker_name}: {e}")
+                logger.exception(f"❌ Failed to initialize broker {broker_name}: {e}")
 
-    async def connect_all_brokers(self) -> Dict[str, bool]:
+    async def connect_all_brokers(self) -> dict[str, bool]:
         """Connect to all configured brokers"""
         results = {}
 
@@ -78,22 +75,18 @@ class MultiBrokerManager:
 
                 if success:
                     # Update broker account info in database
-                    await self._update_broker_account_info(
-                        broker_name, allocation.adapter
-                    )
+                    await self._update_broker_account_info(broker_name, allocation.adapter)
                     logger.info(f"✅ Connected to {broker_name}")
                 else:
                     logger.error(f"❌ Failed to connect to {broker_name}")
 
             except Exception as e:
-                logger.error(f"❌ Error connecting to {broker_name}: {e}")
+                logger.exception(f"❌ Error connecting to {broker_name}: {e}")
                 results[broker_name] = False
 
         return results
 
-    async def _update_broker_account_info(
-        self, broker_name: str, adapter: BrokerAdapter
-    ):
+    async def _update_broker_account_info(self, broker_name: str, adapter: BrokerAdapter) -> None:
         """Update broker account information in database"""
         try:
             account_info = await adapter.get_account_info()
@@ -127,23 +120,21 @@ class MultiBrokerManager:
                     equity=account_info.equity,
                     day_trading_power=account_info.day_trading_power,
                     pattern_day_trader=account_info.pattern_day_trader,
-                    paper_trading=self.brokers[broker_name].adapter.paper_trading
-                    if hasattr(self.brokers[broker_name].adapter, "paper_trading")
-                    else True,
+                    paper_trading=self.brokers[broker_name].adapter.paper_trading if hasattr(self.brokers[broker_name].adapter, "paper_trading") else True,
                 )
                 self.repository.create_broker_account(broker_account)
 
         except Exception as e:
-            logger.error(f"Failed to update account info for {broker_name}: {e}")
+            logger.exception(f"Failed to update account info for {broker_name}: {e}")
 
     async def place_order_smart(
         self,
         symbol: str,
         quantity: float,
         order_type: str,
-        price: Optional[float] = None,
-        broker_preference: Optional[str] = None,
-    ) -> Tuple[str, str]:
+        price: float | None = None,
+        broker_preference: str | None = None,
+    ) -> tuple[str, str]:
         """
         Place order using smart broker selection
         Returns: (broker_name, order_id)
@@ -152,12 +143,14 @@ class MultiBrokerManager:
         broker_name = broker_preference or self._select_optimal_broker(symbol, quantity)
 
         if broker_name not in self.brokers:
-            raise ValueError(f"Broker {broker_name} not available")
+            msg = f"Broker {broker_name} not available"
+            raise ValueError(msg)
 
         adapter = self.brokers[broker_name].adapter
 
         # Create order request (you'll need to adapt this based on your OrderRequest structure)
-        from src.brokers.base.interface import OrderRequest, OrderSide, OrderType as OT
+        from src.brokers.base.interface import OrderRequest, OrderSide
+        from src.brokers.base.interface import OrderType as OT
 
         order_request = OrderRequest(
             symbol=symbol,
@@ -179,16 +172,12 @@ class MultiBrokerManager:
             quantity=quantity,
             order_type=order_type,
             price=price,
-            status=response.status.value
-            if hasattr(response.status, "value")
-            else str(response.status),
+            status=response.status.value if hasattr(response.status, "value") else str(response.status),
         )
 
         self.repository.create_order(order_record)
 
-        logger.info(
-            f"📈 Order placed: {symbol} x{quantity} via {broker_name} (Order ID: {response.order_id})"
-        )
+        logger.info(f"📈 Order placed: {symbol} x{quantity} via {broker_name} (Order ID: {response.order_id})")
 
         return broker_name, response.order_id
 
@@ -205,13 +194,12 @@ class MultiBrokerManager:
 
         # Get all available brokers
         available_brokers = []
-        for broker_name, allocation in self.brokers.items():
+        for broker_name, _allocation in self.brokers.items():
             available_brokers.append(broker_name)
 
         if not available_brokers:
-            raise RuntimeError(
-                "No brokers available. Please configure at least one broker."
-            )
+            msg = "No brokers available. Please configure at least one broker."
+            raise RuntimeError(msg)
 
         # For now, return the first available broker
         # TODO: Implement more sophisticated broker selection logic based on:
@@ -220,7 +208,7 @@ class MultiBrokerManager:
         # - Broker-specific fees and capabilities
         return available_brokers[0]
 
-    async def get_consolidated_positions(self) -> List[Dict[str, Any]]:
+    async def get_consolidated_positions(self) -> list[dict[str, Any]]:
         """Get consolidated positions across all brokers"""
         all_positions = []
 
@@ -254,7 +242,7 @@ class MultiBrokerManager:
                     )
 
             except Exception as e:
-                logger.error(f"Failed to get positions from {broker_name}: {e}")
+                logger.exception(f"Failed to get positions from {broker_name}: {e}")
 
         return all_positions
 
@@ -268,34 +256,30 @@ class MultiBrokerManager:
                 total_value += account_info.portfolio_value
 
             except Exception as e:
-                logger.error(f"Failed to get portfolio value from {broker_name}: {e}")
+                logger.exception(f"Failed to get portfolio value from {broker_name}: {e}")
 
         return total_value
 
-    def get_broker_allocations(self) -> Dict[str, float]:
+    def get_broker_allocations(self) -> dict[str, float]:
         """Get current broker allocation percentages"""
-        return {
-            broker_name: allocation.allocation_percent
-            for broker_name, allocation in self.brokers.items()
-        }
+        return {broker_name: allocation.allocation_percent for broker_name, allocation in self.brokers.items()}
 
-    async def rebalance_allocations(self):
+    async def rebalance_allocations(self) -> None:
         """Rebalance portfolio across brokers (advanced feature)"""
         # This would be a complex algorithm to rebalance positions
         # across brokers based on target allocations
         logger.info("Rebalancing across brokers - feature to be implemented")
-        pass
 
-    async def disconnect_all_brokers(self):
+    async def disconnect_all_brokers(self) -> None:
         """Disconnect from all brokers"""
         for broker_name, allocation in self.brokers.items():
             try:
                 await allocation.adapter.disconnect()
                 logger.info(f"Disconnected from {broker_name}")
             except Exception as e:
-                logger.error(f"Error disconnecting from {broker_name}: {e}")
+                logger.exception(f"Error disconnecting from {broker_name}: {e}")
 
-    def get_primary_broker(self) -> Optional[BrokerAdapter]:
+    def get_primary_broker(self) -> BrokerAdapter | None:
         """
         Get the primary broker adapter (highest allocation broker)
         Returns None if no brokers are available
@@ -304,12 +288,10 @@ class MultiBrokerManager:
             return None
 
         # Find the broker with the highest allocation percentage
-        primary_broker = max(
-            self.brokers.values(), key=lambda allocation: allocation.allocation_percent
-        )
+        primary_broker = max(self.brokers.values(), key=lambda allocation: allocation.allocation_percent)
 
         return primary_broker.adapter
 
-    def get_configured_brokers(self) -> List[str]:
+    def get_configured_brokers(self) -> list[str]:
         """Get list of configured broker names"""
         return list(self.brokers.keys())

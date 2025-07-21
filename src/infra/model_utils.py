@@ -3,10 +3,10 @@ Common data model utilities and converters
 Extracted from broker-specific implementations
 """
 
+import logging
 from dataclasses import dataclass, fields
 from datetime import datetime
-from typing import Dict, List, Any, Type, TypeVar
-import logging
+from typing import Any, TypeVar
 
 import pendulum
 
@@ -17,8 +17,6 @@ T = TypeVar("T")
 
 class ModelConversionError(Exception):
     """Error during model conversion"""
-
-    pass
 
 
 def safe_get_value(data_dict: dict, key: str, default: Any = None) -> Any:
@@ -47,11 +45,12 @@ def parse_date_string(date_str: str) -> datetime:
         parsed = pendulum.parse(date_str)
         return parsed.to_datetime_string()
     except Exception as e:
-        logger.warning(f"Failed to parse date '{date_str}': {e}")
-        raise ModelConversionError(f"Invalid date format: {date_str}")
+        logger.warning("Failed to parse date '%s': %s", date_str, e)
+        msg = f"Invalid date format: {date_str}"
+        raise ModelConversionError(msg) from e
 
 
-def convert_to_type(value: Any, target_type: Type) -> Any:
+def convert_to_type(value: Any, target_type: type) -> Any:
     """
     Convert value to target type with error handling
 
@@ -74,40 +73,37 @@ def convert_to_type(value: Any, target_type: Type) -> Any:
             return parse_date_string(value)
 
         # Handle boolean conversion
-        elif target_type is bool:
+        if target_type is bool:
             if isinstance(value, str):
                 return value.lower() in ("true", "1", "yes", "on")
             return bool(value)
 
         # Handle list conversion
-        elif target_type is list or (
-            hasattr(target_type, "__origin__") and target_type.__origin__ is list
-        ):
+        if target_type is list or (hasattr(target_type, "__origin__") and target_type.__origin__ is list):
             if not isinstance(value, list):
                 return [value] if value is not None else []
             return value
 
         # Handle numeric conversions
-        elif target_type in (int, float):
+        if target_type in (int, float):
             if isinstance(value, str) and not value.strip():
                 return 0
             return target_type(value)
 
         # Handle string conversion
-        elif target_type is str:
+        if target_type is str:
             return str(value) if value is not None else ""
 
         # Default conversion
-        else:
-            return target_type(value)
+        return target_type(value)
 
-    except (ValueError, TypeError) as e:
-        logger.warning(f"Failed to convert '{value}' to {target_type}: {e}")
+    except (ValueError, TypeError):
+        logger.warning("Failed to convert '%s' to %s", value, target_type)
         # Return default value for the type
         return get_default_value(target_type)
 
 
-def get_default_value(target_type: Type) -> Any:
+def get_default_value(target_type: type) -> Any:
     """Get default value for a type"""
     defaults = {
         str: "",
@@ -118,14 +114,14 @@ def get_default_value(target_type: Type) -> Any:
         dict: {},
         datetime: None,
     }
-    return defaults.get(target_type, None)
+    return defaults.get(target_type)
 
 
 def extract_dataclass_data(
-    data_dict: Dict[str, Any],
-    dataclass_type: Type[T],
-    field_mappings: Dict[str, str] = None,
-) -> Dict[str, Any]:
+    data_dict: dict[str, Any],
+    dataclass_type: type[T],
+    field_mappings: dict[str, str] | None = None,
+) -> dict[str, Any]:
     """
     Extract and convert data for dataclass creation
 
@@ -141,7 +137,8 @@ def extract_dataclass_data(
         ModelConversionError: If extraction fails
     """
     if not data_dict:
-        raise ModelConversionError("Data dictionary is empty or None")
+        msg = "Data dictionary is empty or None"
+        raise ModelConversionError(msg)
 
     try:
         # Get dataclass fields and their types
@@ -164,14 +161,15 @@ def extract_dataclass_data(
         return converted_data
 
     except Exception as e:
-        logger.error(f"Failed to extract data for {dataclass_type.__name__}: {e}")
-        raise ModelConversionError(f"Data extraction failed: {e}")
+        logger.exception("Failed to extract data for %s", dataclass_type.__name__)
+        msg = f"Data extraction failed: {e}"
+        raise ModelConversionError(msg) from e
 
 
 def create_dataclass_from_dict(
-    data_dict: Dict[str, Any],
-    dataclass_type: Type[T],
-    field_mappings: Dict[str, str] = None,
+    data_dict: dict[str, Any],
+    dataclass_type: type[T],
+    field_mappings: dict[str, str] | None = None,
     strict: bool = False,
 ) -> T:
     """
@@ -190,40 +188,30 @@ def create_dataclass_from_dict(
         ModelConversionError: If creation fails
     """
     try:
-        converted_data = extract_dataclass_data(
-            data_dict, dataclass_type, field_mappings
-        )
+        converted_data = extract_dataclass_data(data_dict, dataclass_type, field_mappings)
 
         if strict:
             # Check for missing required fields (no default value)
-            required_fields = [
-                f.name
-                for f in fields(dataclass_type)
-                if f.default == dataclass.MISSING
-                and f.default_factory == dataclass.MISSING
-            ]
-            missing_fields = [
-                f
-                for f in required_fields
-                if f not in data_dict
-                and (not field_mappings or field_mappings.get(f) not in data_dict)
-            ]
+            required_fields = [f.name for f in fields(dataclass_type) if f.default == dataclass.MISSING and f.default_factory == dataclass.MISSING]
+            missing_fields = [f for f in required_fields if f not in data_dict and (not field_mappings or field_mappings.get(f) not in data_dict)]
 
             if missing_fields:
-                raise ModelConversionError(f"Missing required fields: {missing_fields}")
+                msg = f"Missing required fields: {missing_fields}"
+                raise ModelConversionError(msg)
 
         return dataclass_type(**converted_data)
 
     except Exception as e:
-        logger.error(f"Failed to create {dataclass_type.__name__} from dict: {e}")
-        raise ModelConversionError(f"Failed to create {dataclass_type.__name__}: {e}")
+        logger.exception("Failed to create %s from dict", dataclass_type.__name__)
+        msg = f"Failed to create {dataclass_type.__name__}: {e}"
+        raise ModelConversionError(msg) from e
 
 
 def convert_dict_list_to_dataclass_list(
-    dict_list: List[Dict[str, Any]],
-    dataclass_type: Type[T],
-    field_mappings: Dict[str, str] = None,
-) -> List[T]:
+    dict_list: list[dict[str, Any]],
+    dataclass_type: type[T],
+    field_mappings: dict[str, str] | None = None,
+) -> list[T]:
     """
     Convert list of dictionaries to list of dataclass instances
 
@@ -241,13 +229,14 @@ def convert_dict_list_to_dataclass_list(
     converted_items = []
     for i, item_dict in enumerate(dict_list):
         try:
-            converted_item = create_dataclass_from_dict(
-                item_dict, dataclass_type, field_mappings
-            )
+            converted_item = create_dataclass_from_dict(item_dict, dataclass_type, field_mappings)
             converted_items.append(converted_item)
         except ModelConversionError as e:
             logger.warning(
-                f"Failed to convert item {i} to {dataclass_type.__name__}: {e}"
+                "Failed to convert item %d to %s: %s",
+                i,
+                dataclass_type.__name__,
+                e,
             )
             # Skip invalid items rather than failing the entire conversion
             continue
@@ -255,7 +244,7 @@ def convert_dict_list_to_dataclass_list(
     return converted_items
 
 
-def get_field_mappings(broker_name: str) -> Dict[str, str]:
+def get_field_mappings(broker_name: str) -> dict[str, str]:
     """
     Get field mappings for converting broker-specific fields to standard format
 
@@ -290,7 +279,7 @@ def get_field_mappings(broker_name: str) -> Dict[str, str]:
     return mappings.get(broker_name, {})
 
 
-def get_order_type_mappings(broker_name: str) -> Dict[str, str]:
+def get_order_type_mappings(broker_name: str) -> dict[str, str]:
     """
     Get order type mappings for converting between broker-specific and standard formats
 
@@ -318,7 +307,7 @@ def get_order_type_mappings(broker_name: str) -> Dict[str, str]:
     return broker_mappings.get(broker_name, standard_mappings)
 
 
-def get_status_mappings(broker_name: str) -> Dict[str, str]:
+def get_status_mappings(broker_name: str) -> dict[str, str]:
     """
     Get status mappings for converting broker-specific statuses to standard format
 
@@ -354,9 +343,10 @@ def get_status_mappings(broker_name: str) -> Dict[str, str]:
     return broker_mappings.get(broker_name, standard_mappings)
 
 
-def get_reverse_status_mappings(broker_name: str) -> Dict[str, str]:
+def get_reverse_status_mappings(broker_name: str) -> dict[str, str]:
     """
-    Get reverse status mappings for converting standard statuses to broker-specific format
+    Get reverse status mappings for converting standard statuses to
+    broker-specific format
 
     Args:
         broker_name: Name of the broker (e.g., 'alpaca')

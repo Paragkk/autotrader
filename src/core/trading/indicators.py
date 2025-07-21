@@ -1,6 +1,7 @@
-import pandas as pd
-from typing import List, Optional, Callable
+from collections.abc import Callable
 from dataclasses import dataclass
+
+import pandas as pd
 
 
 @dataclass
@@ -20,31 +21,25 @@ class TechnicalIndicators:
     Handles calculation and management of technical indicators.
     """
 
-    def __init__(self, data: pd.DataFrame):
+    def __init__(self, data: pd.DataFrame) -> None:
         """Initialize with a DataFrame containing price data."""
         self.data = data
-        self.signals: List[IndicatorSignal] = []
+        self.signals: list[IndicatorSignal] = []
         self._indicators = {}
 
-    def add_sma(
-        self, period: int, column: str = "close", name: Optional[str] = None
-    ) -> str:
+    def add_sma(self, period: int, column: str = "close", name: str | None = None) -> str:
         """Add Simple Moving Average indicator."""
         name = name or f"sma_{period}"
         self._indicators[name] = self.data[column].rolling(window=period).mean()
         return name
 
-    def add_ema(
-        self, period: int, column: str = "close", name: Optional[str] = None
-    ) -> str:
+    def add_ema(self, period: int, column: str = "close", name: str | None = None) -> str:
         """Add Exponential Moving Average indicator."""
         name = name or f"ema_{period}"
         self._indicators[name] = self.data[column].ewm(span=period, adjust=False).mean()
         return name
 
-    def add_rsi(
-        self, period: int = 14, column: str = "close", name: Optional[str] = None
-    ) -> str:
+    def add_rsi(self, period: int = 14, column: str = "close", name: str | None = None) -> str:
         """Add Relative Strength Index indicator."""
         name = name or f"rsi_{period}"
         delta = self.data[column].diff()
@@ -73,9 +68,7 @@ class TechnicalIndicators:
 
         return "macd_line", "macd_signal", "macd_histogram"
 
-    def add_bollinger_bands(
-        self, period: int = 20, std_dev: float = 2.0, column: str = "close"
-    ) -> tuple:
+    def add_bollinger_bands(self, period: int = 20, std_dev: float = 2.0, column: str = "close") -> tuple:
         """Add Bollinger Bands indicator."""
         middle_band = self.data[column].rolling(window=period).mean()
         std = self.data[column].rolling(window=period).std()
@@ -108,10 +101,11 @@ class TechnicalIndicators:
         sell_condition: Callable,
         buy_threshold: float,
         sell_threshold: float,
-    ):
+    ) -> None:
         """Set conditions for generating trading signals."""
         if indicator_name not in self._indicators:
-            raise ValueError(f"Indicator {indicator_name} not found")
+            msg = f"Indicator {indicator_name} not found"
+            raise ValueError(msg)
 
         indicator_values = self._indicators[indicator_name]
         latest_value = indicator_values.iloc[-1]
@@ -146,10 +140,10 @@ class TechnicalIndicators:
         """Get the values for a specific indicator."""
         return self._indicators.get(name)
 
-    def get_latest_signals(self) -> List[IndicatorSignal]:
+    def get_latest_signals(self) -> list[IndicatorSignal]:
         """Get the latest trading signals."""
         return self.signals
 
-    def clear_signals(self):
+    def clear_signals(self) -> None:
         """Clear all stored signals."""
         self.signals.clear()

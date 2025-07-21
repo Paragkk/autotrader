@@ -3,24 +3,25 @@ Base Broker Adapter - Unified Interface for All Brokers
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Any
 from datetime import datetime
+from typing import Any
+
 from .interface import (
+    AccountInfo,
+    Asset,
+    MarketData,
     OrderRequest,
     OrderResponse,
-    Position,
-    AccountInfo,
-    MarketData,
-    Asset,
-    OrderType,
     OrderStatus,
+    OrderType,
+    Position,
 )
 
 
 class BrokerAdapter(ABC):
     """Abstract base class for all broker adapters"""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]) -> None:
         self.config = config
         self.paper_trading = config.get("paper_trading", True)
         self.authenticated = False
@@ -28,76 +29,58 @@ class BrokerAdapter(ABC):
     @abstractmethod
     def authenticate(self) -> bool:
         """Authenticate with broker"""
-        pass
 
     @abstractmethod
     def get_account_info(self) -> AccountInfo:
         """Get account information"""
-        pass
 
     @abstractmethod
-    def get_positions(self) -> List[Position]:
+    def get_positions(self) -> list[Position]:
         """Get all positions"""
-        pass
 
     @abstractmethod
-    def get_position(self, symbol: str) -> Optional[Position]:
+    def get_position(self, symbol: str) -> Position | None:
         """Get position for specific symbol"""
-        pass
 
     @abstractmethod
     def submit_order(self, order: OrderRequest) -> OrderResponse:
         """Submit an order"""
-        pass
 
     @abstractmethod
     def cancel_order(self, order_id: str) -> bool:
         """Cancel an order"""
-        pass
 
     @abstractmethod
-    def get_order(self, order_id: str) -> Optional[OrderResponse]:
+    def get_order(self, order_id: str) -> OrderResponse | None:
         """Get order status"""
-        pass
 
     @abstractmethod
-    def get_orders(self, status: Optional[OrderStatus] = None) -> List[OrderResponse]:
+    def get_orders(self, status: OrderStatus | None = None) -> list[OrderResponse]:
         """Get all orders with optional status filter"""
-        pass
 
     @abstractmethod
-    def get_assets(self) -> List[Asset]:
+    def get_assets(self) -> list[Asset]:
         """Get all tradeable assets"""
-        pass
 
     @abstractmethod
-    def get_asset(self, symbol: str) -> Optional[Asset]:
+    def get_asset(self, symbol: str) -> Asset | None:
         """Get asset information for symbol"""
-        pass
 
     @abstractmethod
-    def get_market_data(self, symbol: str) -> Optional[MarketData]:
+    def get_market_data(self, symbol: str) -> MarketData | None:
         """Get current market data for symbol"""
-        pass
 
     @abstractmethod
-    def get_historical_bars(
-        self, symbol: str, start: str, end: str, timeframe: str = "1day"
-    ) -> List[MarketData]:
+    def get_historical_bars(self, symbol: str, start: str, end: str, timeframe: str = "1day") -> list[MarketData]:
         """Get historical market data"""
-        pass
 
     @abstractmethod
     def is_market_open(self) -> bool:
         """Check if market is open"""
-        pass
 
     @abstractmethod
-    def get_market_calendar(
-        self, start: str = None, end: str = None
-    ) -> List[Dict[str, Any]]:
+    def get_market_calendar(self, start: str | None = None, end: str | None = None) -> list[dict[str, Any]]:
         """Get market calendar"""
-        pass
 
     def validate_order(self, order: OrderRequest) -> bool:
         """Validate order before submission"""
@@ -110,11 +93,7 @@ class BrokerAdapter(ABC):
             return False
         if order.order_type == OrderType.STOP and not order.stop_price:
             return False
-        if order.order_type == OrderType.STOP_LIMIT and (
-            not order.price or not order.stop_price
-        ):
-            return False
-        return True
+        return not (order.order_type == OrderType.STOP_LIMIT and (not order.price or not order.stop_price))
 
     def get_buying_power(self) -> float:
         """Get available buying power"""
@@ -140,7 +119,7 @@ class BrokerAdapter(ABC):
         shares = position_value / market_data.price
         return max(0, int(shares))  # Return whole shares
 
-    def get_connection_status(self) -> Dict[str, Any]:
+    def get_connection_status(self) -> dict[str, Any]:
         """Get connection status info"""
         return {
             "authenticated": self.authenticated,

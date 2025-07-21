@@ -3,21 +3,22 @@ Database models for the automated trading system using SQLModel
 """
 
 from datetime import datetime
-from typing import Optional, List, Dict, Any
-from sqlmodel import SQLModel, Field, Relationship, Column, DateTime, JSON
+from typing import Any, Optional
+
 from sqlalchemy.sql import func
+from sqlmodel import JSON, Column, DateTime, Field, Relationship, SQLModel
 
 
 class ScreenedStockBase(SQLModel):
     """Base model for screened stocks"""
 
     symbol: str = Field(index=True, max_length=10)
-    screening_criteria: Dict[str, Any] = Field(sa_column=Column(JSON))
+    screening_criteria: dict[str, Any] = Field(sa_column=Column(JSON))
     price: float
     volume: int
     daily_change: float
-    market_cap: Optional[float] = None
-    sector: Optional[str] = Field(default=None, max_length=50)
+    market_cap: float | None = None
+    sector: str | None = Field(default=None, max_length=50)
 
 
 class ScreenedStock(ScreenedStockBase, table=True):
@@ -25,13 +26,11 @@ class ScreenedStock(ScreenedStockBase, table=True):
 
     __tablename__ = "screened_stocks"
 
-    id: Optional[int] = Field(default=None, primary_key=True)
-    screened_at: datetime = Field(
-        sa_column=Column(DateTime, server_default=func.now(), nullable=False)
-    )
+    id: int | None = Field(default=None, primary_key=True)
+    screened_at: datetime = Field(sa_column=Column(DateTime, server_default=func.now(), nullable=False))
 
     # Relationships
-    scores: List["StockScore"] = Relationship(back_populates="screened_stock")
+    scores: list["StockScore"] = Relationship(back_populates="screened_stock")
 
 
 class StockScoreBase(SQLModel):
@@ -40,13 +39,13 @@ class StockScoreBase(SQLModel):
     symbol: str = Field(index=True, max_length=10)
     score: float
     rank: int
-    factors_used: Dict[str, Any] = Field(sa_column=Column(JSON))
-    momentum_score: Optional[float] = None
-    volume_score: Optional[float] = None
-    volatility_score: Optional[float] = None
-    technical_score: Optional[float] = None
-    sentiment_score: Optional[float] = None
-    fundamentals_score: Optional[float] = None
+    factors_used: dict[str, Any] = Field(sa_column=Column(JSON))
+    momentum_score: float | None = None
+    volume_score: float | None = None
+    volatility_score: float | None = None
+    technical_score: float | None = None
+    sentiment_score: float | None = None
+    fundamentals_score: float | None = None
 
 
 class StockScore(StockScoreBase, table=True):
@@ -54,19 +53,13 @@ class StockScore(StockScoreBase, table=True):
 
     __tablename__ = "stock_scores"
 
-    id: Optional[int] = Field(default=None, primary_key=True)
-    screened_stock_id: Optional[int] = Field(
-        default=None, foreign_key="screened_stocks.id"
-    )
-    scored_at: datetime = Field(
-        sa_column=Column(DateTime, server_default=func.now(), nullable=False)
-    )
+    id: int | None = Field(default=None, primary_key=True)
+    screened_stock_id: int | None = Field(default=None, foreign_key="screened_stocks.id")
+    scored_at: datetime = Field(sa_column=Column(DateTime, server_default=func.now(), nullable=False))
 
     # Relationships
-    screened_stock: Optional[ScreenedStock] = Relationship(back_populates="scores")
-    tracked_symbol: Optional["TrackedSymbol"] = Relationship(
-        back_populates="stock_score"
-    )
+    screened_stock: ScreenedStock | None = Relationship(back_populates="scores")
+    tracked_symbol: Optional["TrackedSymbol"] = Relationship(back_populates="stock_score")
 
 
 class TrackedSymbolBase(SQLModel):
@@ -74,7 +67,7 @@ class TrackedSymbolBase(SQLModel):
 
     symbol: str = Field(index=True, max_length=10, unique=True)
     is_active: bool = Field(default=True)
-    reason_added: Optional[str] = Field(default=None, max_length=100)
+    reason_added: str | None = Field(default=None, max_length=100)
 
 
 class TrackedSymbol(TrackedSymbolBase, table=True):
@@ -82,20 +75,14 @@ class TrackedSymbol(TrackedSymbolBase, table=True):
 
     __tablename__ = "tracked_symbols"
 
-    id: Optional[int] = Field(default=None, primary_key=True)
-    stock_score_id: Optional[int] = Field(default=None, foreign_key="stock_scores.id")
-    added_at: datetime = Field(
-        sa_column=Column(DateTime, server_default=func.now(), nullable=False)
-    )
-    last_updated: datetime = Field(
-        sa_column=Column(DateTime, server_default=func.now(), onupdate=func.now())
-    )
+    id: int | None = Field(default=None, primary_key=True)
+    stock_score_id: int | None = Field(default=None, foreign_key="stock_scores.id")
+    added_at: datetime = Field(sa_column=Column(DateTime, server_default=func.now(), nullable=False))
+    last_updated: datetime = Field(sa_column=Column(DateTime, server_default=func.now(), onupdate=func.now()))
 
     # Relationships
-    stock_score: Optional[StockScore] = Relationship(back_populates="tracked_symbol")
-    strategy_results: List["StrategyResult"] = Relationship(
-        back_populates="tracked_symbol"
-    )
+    stock_score: StockScore | None = Relationship(back_populates="tracked_symbol")
+    strategy_results: list["StrategyResult"] = Relationship(back_populates="tracked_symbol")
 
 
 class StrategyResultBase(SQLModel):
@@ -107,9 +94,7 @@ class StrategyResultBase(SQLModel):
     strength: float  # 0.0 to 1.0
     confidence: float  # 0.0 to 1.0
     price_at_analysis: float
-    strategy_data: Optional[Dict[str, Any]] = Field(
-        default=None, sa_column=Column(JSON)
-    )
+    strategy_data: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON))
 
 
 class StrategyResult(StrategyResultBase, table=True):
@@ -117,18 +102,12 @@ class StrategyResult(StrategyResultBase, table=True):
 
     __tablename__ = "strategy_results"
 
-    id: Optional[int] = Field(default=None, primary_key=True)
-    tracked_symbol_id: Optional[int] = Field(
-        default=None, foreign_key="tracked_symbols.id"
-    )
-    analyzed_at: datetime = Field(
-        sa_column=Column(DateTime, server_default=func.now(), nullable=False)
-    )
+    id: int | None = Field(default=None, primary_key=True)
+    tracked_symbol_id: int | None = Field(default=None, foreign_key="tracked_symbols.id")
+    analyzed_at: datetime = Field(sa_column=Column(DateTime, server_default=func.now(), nullable=False))
 
     # Relationships
-    tracked_symbol: Optional[TrackedSymbol] = Relationship(
-        back_populates="strategy_results"
-    )
+    tracked_symbol: TrackedSymbol | None = Relationship(back_populates="strategy_results")
 
 
 class SignalBase(SQLModel):
@@ -140,12 +119,8 @@ class SignalBase(SQLModel):
     strength: float
     price_at_signal: float
     strategy_count: int
-    contributing_strategies: Optional[Dict[str, Any]] = Field(
-        default=None, sa_column=Column(JSON)
-    )
-    status: str = Field(
-        default="pending", max_length=20
-    )  # 'pending', 'executed', 'rejected', 'expired'
+    contributing_strategies: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON))
+    status: str = Field(default="pending", max_length=20)  # 'pending', 'executed', 'rejected', 'expired'
 
 
 class Signal(SignalBase, table=True):
@@ -153,10 +128,8 @@ class Signal(SignalBase, table=True):
 
     __tablename__ = "signals"
 
-    id: Optional[int] = Field(default=None, primary_key=True)
-    generated_at: datetime = Field(
-        sa_column=Column(DateTime, server_default=func.now(), nullable=False)
-    )
+    id: int | None = Field(default=None, primary_key=True)
+    generated_at: datetime = Field(sa_column=Column(DateTime, server_default=func.now(), nullable=False))
 
     # Relationships
     order: Optional["Order"] = Relationship(back_populates="signal")
@@ -167,11 +140,11 @@ class RiskFilterResultBase(SQLModel):
     """Base model for risk filter results"""
 
     result: str = Field(max_length=10)  # 'approved', 'rejected'
-    reason: Optional[str] = Field(default=None, max_length=200)
+    reason: str | None = Field(default=None, max_length=200)
     risk_score: float
-    position_size: Optional[float] = None
-    stop_loss: Optional[float] = None
-    take_profit: Optional[float] = None
+    position_size: float | None = None
+    stop_loss: float | None = None
+    take_profit: float | None = None
 
 
 class RiskFilterResult(RiskFilterResultBase, table=True):
@@ -179,34 +152,30 @@ class RiskFilterResult(RiskFilterResultBase, table=True):
 
     __tablename__ = "risk_filter_results"
 
-    id: Optional[int] = Field(default=None, primary_key=True)
-    signal_id: Optional[int] = Field(default=None, foreign_key="signals.id")
-    filtered_at: datetime = Field(
-        sa_column=Column(DateTime, server_default=func.now(), nullable=False)
-    )
+    id: int | None = Field(default=None, primary_key=True)
+    signal_id: int | None = Field(default=None, foreign_key="signals.id")
+    filtered_at: datetime = Field(sa_column=Column(DateTime, server_default=func.now(), nullable=False))
 
     # Relationships
-    signal: Optional[Signal] = Relationship(back_populates="risk_filter")
+    signal: Signal | None = Relationship(back_populates="risk_filter")
 
 
 class OrderBase(SQLModel):
     """Base model for orders"""
 
-    broker_name: str = Field(
-        max_length=20, index=True
-    )  # 'alpaca', 'interactive_brokers', etc.
-    broker_order_id: Optional[str] = Field(default=None, max_length=50, index=True)
+    broker_name: str = Field(max_length=20, index=True)  # 'alpaca', 'interactive_brokers', etc.
+    broker_order_id: str | None = Field(default=None, max_length=50, index=True)
     symbol: str = Field(index=True, max_length=10)
     side: str = Field(max_length=10)  # 'buy', 'sell'
     quantity: float
     order_type: str = Field(max_length=20)  # 'market', 'limit', 'stop'
-    price: Optional[float] = None
-    stop_price: Optional[float] = None
+    price: float | None = None
+    stop_price: float | None = None
     time_in_force: str = Field(default="day", max_length=10)
     status: str = Field(max_length=20)  # 'pending', 'filled', 'cancelled', 'rejected'
     filled_quantity: float = Field(default=0.0)
-    filled_price: Optional[float] = None
-    commission: Optional[float] = None
+    filled_price: float | None = None
+    commission: float | None = None
 
 
 class Order(OrderBase, table=True):
@@ -214,36 +183,32 @@ class Order(OrderBase, table=True):
 
     __tablename__ = "orders"
 
-    id: Optional[int] = Field(default=None, primary_key=True)
-    signal_id: Optional[int] = Field(default=None, foreign_key="signals.id")
-    created_at: datetime = Field(
-        sa_column=Column(DateTime, server_default=func.now(), nullable=False)
-    )
-    submitted_at: Optional[datetime] = None
-    filled_at: Optional[datetime] = None
-    cancelled_at: Optional[datetime] = None
+    id: int | None = Field(default=None, primary_key=True)
+    signal_id: int | None = Field(default=None, foreign_key="signals.id")
+    created_at: datetime = Field(sa_column=Column(DateTime, server_default=func.now(), nullable=False))
+    submitted_at: datetime | None = None
+    filled_at: datetime | None = None
+    cancelled_at: datetime | None = None
 
     # Relationships
-    signal: Optional[Signal] = Relationship(back_populates="order")
+    signal: Signal | None = Relationship(back_populates="order")
     position: Optional["Position"] = Relationship(back_populates="entry_order")
 
 
 class PositionBase(SQLModel):
     """Base model for positions"""
 
-    broker_name: str = Field(
-        max_length=20, index=True
-    )  # 'alpaca', 'interactive_brokers', etc.
+    broker_name: str = Field(max_length=20, index=True)  # 'alpaca', 'interactive_brokers', etc.
     symbol: str = Field(index=True, max_length=10)
     quantity: float
     side: str = Field(max_length=10)  # 'long', 'short'
     avg_entry_price: float
-    avg_exit_price: Optional[float] = None
+    avg_exit_price: float | None = None
     status: str = Field(max_length=20)  # 'open', 'closed', 'partial'
     unrealized_pnl: float = Field(default=0.0)
-    realized_pnl: Optional[float] = None
-    stop_loss_price: Optional[float] = None
-    take_profit_price: Optional[float] = None
+    realized_pnl: float | None = None
+    stop_loss_price: float | None = None
+    take_profit_price: float | None = None
 
 
 class Position(PositionBase, table=True):
@@ -251,49 +216,41 @@ class Position(PositionBase, table=True):
 
     __tablename__ = "positions"
 
-    id: Optional[int] = Field(default=None, primary_key=True)
-    entry_order_id: Optional[int] = Field(default=None, foreign_key="orders.id")
-    exit_order_id: Optional[int] = Field(default=None, foreign_key="orders.id")
-    opened_at: datetime = Field(
-        sa_column=Column(DateTime, server_default=func.now(), nullable=False)
-    )
-    closed_at: Optional[datetime] = None
+    id: int | None = Field(default=None, primary_key=True)
+    entry_order_id: int | None = Field(default=None, foreign_key="orders.id")
+    exit_order_id: int | None = Field(default=None, foreign_key="orders.id")
+    opened_at: datetime = Field(sa_column=Column(DateTime, server_default=func.now(), nullable=False))
+    closed_at: datetime | None = None
 
     # Relationships
-    entry_order: Optional[Order] = Relationship(
+    entry_order: Order | None = Relationship(
         back_populates="position",
         sa_relationship_kwargs={"foreign_keys": "[Position.entry_order_id]"},
     )
-    exit_order: Optional[Order] = Relationship(
-        sa_relationship_kwargs={"foreign_keys": "[Position.exit_order_id]"}
-    )
+    exit_order: Order | None = Relationship(sa_relationship_kwargs={"foreign_keys": "[Position.exit_order_id]"})
     trade_log: Optional["TradeLog"] = Relationship(back_populates="position")
 
 
 class TradeLogBase(SQLModel):
     """Base model for trade logs"""
 
-    broker_name: str = Field(
-        max_length=20, index=True
-    )  # 'alpaca', 'interactive_brokers', etc.
+    broker_name: str = Field(max_length=20, index=True)  # 'alpaca', 'interactive_brokers', etc.
     symbol: str = Field(index=True, max_length=10)
     signal_generated_at: datetime
     order_placed_at: datetime
     position_opened_at: datetime
-    position_closed_at: Optional[datetime] = None
+    position_closed_at: datetime | None = None
     entry_price: float
-    exit_price: Optional[float] = None
+    exit_price: float | None = None
     quantity: float
-    holding_period: Optional[int] = None  # in minutes
-    gross_pnl: Optional[float] = None
-    net_pnl: Optional[float] = None
-    return_percent: Optional[float] = None
-    commission_paid: Optional[float] = None
-    strategy_name: Optional[str] = Field(default=None, max_length=50)
-    signal_strength: Optional[float] = None
-    market_conditions: Optional[Dict[str, Any]] = Field(
-        default=None, sa_column=Column(JSON)
-    )
+    holding_period: int | None = None  # in minutes
+    gross_pnl: float | None = None
+    net_pnl: float | None = None
+    return_percent: float | None = None
+    commission_paid: float | None = None
+    strategy_name: str | None = Field(default=None, max_length=50)
+    signal_strength: float | None = None
+    market_conditions: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON))
 
 
 class TradeLog(TradeLogBase, table=True):
@@ -301,29 +258,29 @@ class TradeLog(TradeLogBase, table=True):
 
     __tablename__ = "trade_logs"
 
-    id: Optional[int] = Field(default=None, primary_key=True)
-    position_id: Optional[int] = Field(default=None, foreign_key="positions.id")
+    id: int | None = Field(default=None, primary_key=True)
+    position_id: int | None = Field(default=None, foreign_key="positions.id")
 
     # Relationships
-    position: Optional[Position] = Relationship(back_populates="trade_log")
+    position: Position | None = Relationship(back_populates="trade_log")
 
 
 class SystemMetricsBase(SQLModel):
     """Base model for system metrics"""
 
-    total_equity: Optional[float] = None
-    available_cash: Optional[float] = None
-    total_positions: Optional[int] = None
-    daily_pnl: Optional[float] = None
-    signals_generated: Optional[int] = None
-    orders_placed: Optional[int] = None
-    orders_filled: Optional[int] = None
-    win_rate: Optional[float] = None
-    screening_runtime: Optional[float] = None  # seconds
-    strategy_runtime: Optional[float] = None  # seconds
-    order_execution_time: Optional[float] = None  # seconds
-    market_hours: Optional[bool] = None
-    market_volatility: Optional[float] = None
+    total_equity: float | None = None
+    available_cash: float | None = None
+    total_positions: int | None = None
+    daily_pnl: float | None = None
+    signals_generated: int | None = None
+    orders_placed: int | None = None
+    orders_filled: int | None = None
+    win_rate: float | None = None
+    screening_runtime: float | None = None  # seconds
+    strategy_runtime: float | None = None  # seconds
+    order_execution_time: float | None = None  # seconds
+    market_hours: bool | None = None
+    market_volatility: float | None = None
 
 
 class SystemMetrics(SystemMetricsBase, table=True):
@@ -331,10 +288,8 @@ class SystemMetrics(SystemMetricsBase, table=True):
 
     __tablename__ = "system_metrics"
 
-    id: Optional[int] = Field(default=None, primary_key=True)
-    recorded_at: datetime = Field(
-        sa_column=Column(DateTime, server_default=func.now(), nullable=False)
-    )
+    id: int | None = Field(default=None, primary_key=True)
+    recorded_at: datetime = Field(sa_column=Column(DateTime, server_default=func.now(), nullable=False))
 
 
 class ConfigurationHistoryBase(SQLModel):
@@ -342,9 +297,9 @@ class ConfigurationHistoryBase(SQLModel):
 
     changed_by: str = Field(default="system", max_length=50)
     config_section: str = Field(max_length=50)
-    old_value: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
-    new_value: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
-    reason: Optional[str] = Field(default=None, max_length=200)
+    old_value: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON))
+    new_value: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON))
+    reason: str | None = Field(default=None, max_length=200)
 
 
 class ConfigurationHistory(ConfigurationHistoryBase, table=True):
@@ -352,10 +307,8 @@ class ConfigurationHistory(ConfigurationHistoryBase, table=True):
 
     __tablename__ = "configuration_history"
 
-    id: Optional[int] = Field(default=None, primary_key=True)
-    changed_at: datetime = Field(
-        sa_column=Column(DateTime, server_default=func.now(), nullable=False)
-    )
+    id: int | None = Field(default=None, primary_key=True)
+    changed_at: datetime = Field(sa_column=Column(DateTime, server_default=func.now(), nullable=False))
 
 
 class BrokerAccountBase(SQLModel):
@@ -367,7 +320,7 @@ class BrokerAccountBase(SQLModel):
     cash: float = Field(default=0.0)
     portfolio_value: float = Field(default=0.0)
     equity: float = Field(default=0.0)
-    day_trading_power: Optional[float] = None
+    day_trading_power: float | None = None
     pattern_day_trader: bool = Field(default=False)
     account_status: str = Field(default="active", max_length=20)
     paper_trading: bool = Field(default=True)
@@ -378,10 +331,8 @@ class BrokerAccount(BrokerAccountBase, table=True):
 
     __tablename__ = "broker_accounts"
 
-    id: Optional[int] = Field(default=None, primary_key=True)
-    last_updated: datetime = Field(
-        sa_column=Column(DateTime, server_default=func.now(), onupdate=func.now())
-    )
+    id: int | None = Field(default=None, primary_key=True)
+    last_updated: datetime = Field(sa_column=Column(DateTime, server_default=func.now(), onupdate=func.now()))
 
 
 # Create and update models for API use
@@ -390,13 +341,13 @@ class ScreenedStockCreate(ScreenedStockBase):
 
 
 class ScreenedStockUpdate(SQLModel):
-    symbol: Optional[str] = None
-    screening_criteria: Optional[Dict[str, Any]] = None
-    price: Optional[float] = None
-    volume: Optional[int] = None
-    daily_change: Optional[float] = None
-    market_cap: Optional[float] = None
-    sector: Optional[str] = None
+    symbol: str | None = None
+    screening_criteria: dict[str, Any] | None = None
+    price: float | None = None
+    volume: int | None = None
+    daily_change: float | None = None
+    market_cap: float | None = None
+    sector: str | None = None
 
 
 class StockScoreCreate(StockScoreBase):
@@ -404,15 +355,15 @@ class StockScoreCreate(StockScoreBase):
 
 
 class StockScoreUpdate(SQLModel):
-    score: Optional[float] = None
-    rank: Optional[int] = None
-    factors_used: Optional[Dict[str, Any]] = None
-    momentum_score: Optional[float] = None
-    volume_score: Optional[float] = None
-    volatility_score: Optional[float] = None
-    technical_score: Optional[float] = None
-    sentiment_score: Optional[float] = None
-    fundamentals_score: Optional[float] = None
+    score: float | None = None
+    rank: int | None = None
+    factors_used: dict[str, Any] | None = None
+    momentum_score: float | None = None
+    volume_score: float | None = None
+    volatility_score: float | None = None
+    technical_score: float | None = None
+    sentiment_score: float | None = None
+    fundamentals_score: float | None = None
 
 
 # Add other Create/Update models as needed for all tables

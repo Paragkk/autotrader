@@ -3,12 +3,11 @@ Dashboard Manager for AutoTrader Pro
 Handles starting/stopping the Streamlit dashboard independently
 """
 
-import subprocess
-import time
 import logging
 import os
+import subprocess
+import time
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -16,12 +15,10 @@ logger = logging.getLogger(__name__)
 class DashboardManager:
     """Manages the Streamlit dashboard process"""
 
-    def __init__(
-        self, dashboard_port: int = 8501, api_base_url: str = "http://localhost:8080"
-    ):
+    def __init__(self, dashboard_port: int = 8501, api_base_url: str = "http://localhost:8080") -> None:
         self.dashboard_port = dashboard_port
         self.api_base_url = api_base_url
-        self.dashboard_process: Optional[subprocess.Popen] = None
+        self.dashboard_process: subprocess.Popen | None = None
         self.dashboard_path = Path(__file__).parent / "main.py"
 
     def start_dashboard(self) -> bool:
@@ -71,9 +68,7 @@ class DashboardManager:
                 stderr=subprocess.PIPE,
                 stdin=subprocess.PIPE,  # Provide stdin to handle email prompt
                 env=env,
-                cwd=Path(
-                    __file__
-                ).parent.parent.parent,  # Set working directory to project root
+                cwd=Path(__file__).parent.parent.parent,  # Set working directory to project root
                 text=True,
                 bufsize=1,
                 universal_newlines=True,
@@ -94,46 +89,37 @@ class DashboardManager:
 
             # Check if process is still running and capture any error output
             if self.dashboard_process.poll() is None:
-                logger.info(
-                    f"Dashboard started successfully at http://localhost:{self.dashboard_port}"
-                )
+                logger.info(f"Dashboard started successfully at http://localhost:{self.dashboard_port}")
                 # Additional check - try to ping the dashboard
                 try:
                     import requests
 
-                    response = requests.get(
-                        f"http://localhost:{self.dashboard_port}", timeout=5
-                    )
+                    response = requests.get(f"http://localhost:{self.dashboard_port}", timeout=5)
                     if response.status_code == 200:
                         logger.info("Dashboard is responding to HTTP requests")
                     else:
-                        logger.warning(
-                            f"Dashboard process running but HTTP status: {response.status_code}"
-                        )
+                        logger.warning(f"Dashboard process running but HTTP status: {response.status_code}")
                 except Exception as e:
-                    logger.warning(
-                        f"Dashboard process running but HTTP check failed: {e}"
-                    )
+                    logger.warning(f"Dashboard process running but HTTP check failed: {e}")
                 return True
-            else:
-                logger.error("Dashboard process ended unexpectedly")
-                # Try to capture any error output
-                try:
-                    stdout, stderr = self.dashboard_process.communicate(timeout=1)
-                    if stdout:
-                        logger.error(f"Dashboard stdout: {stdout}")
-                    if stderr:
-                        logger.error(f"Dashboard stderr: {stderr}")
-                except subprocess.TimeoutExpired:
-                    logger.error("Could not capture dashboard output - process timeout")
-                except Exception as e:
-                    logger.error(f"Error capturing dashboard output: {e}")
+            logger.error("Dashboard process ended unexpectedly")
+            # Try to capture any error output
+            try:
+                stdout, stderr = self.dashboard_process.communicate(timeout=1)
+                if stdout:
+                    logger.error(f"Dashboard stdout: {stdout}")
+                if stderr:
+                    logger.error(f"Dashboard stderr: {stderr}")
+            except subprocess.TimeoutExpired:
+                logger.exception("Could not capture dashboard output - process timeout")
+            except Exception as e:
+                logger.exception(f"Error capturing dashboard output: {e}")
 
-                self.dashboard_process = None
-                return False
+            self.dashboard_process = None
+            return False
 
         except Exception as e:
-            logger.error(f"Failed to start dashboard: {e}")
+            logger.exception(f"Failed to start dashboard: {e}")
             self.dashboard_process = None
             return False
 
@@ -163,7 +149,7 @@ class DashboardManager:
             return True
 
         except Exception as e:
-            logger.error(f"Failed to stop dashboard: {e}")
+            logger.exception(f"Failed to stop dashboard: {e}")
             return False
 
     def is_running(self) -> bool:
@@ -187,7 +173,5 @@ class DashboardManager:
             "port": self.dashboard_port,
             "url": f"http://localhost:{self.dashboard_port}",
             "api_base_url": self.api_base_url,
-            "process_id": self.dashboard_process.pid
-            if self.dashboard_process
-            else None,
+            "process_id": self.dashboard_process.pid if self.dashboard_process else None,
         }

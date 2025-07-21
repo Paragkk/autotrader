@@ -3,11 +3,13 @@ News Analyzer and Sentiment Analysis Module
 """
 
 import logging
-from typing import List, Dict, Any, Optional
-from datetime import datetime, timedelta
 import re
+from datetime import datetime, timedelta
+from typing import Any
+
 from textblob import TextBlob
-from ..brokers.base import BrokerInterface
+
+from src.brokers.base import BrokerInterface
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +19,7 @@ class NewsAnalyzer:
     Analyzes news sentiment and extracts trading signals from news data
     """
 
-    def __init__(self, broker_adapter: BrokerInterface):
+    def __init__(self, broker_adapter: BrokerInterface) -> None:
         self.broker_adapter = broker_adapter
         self.sentiment_cache = {}
 
@@ -78,9 +80,7 @@ class NewsAnalyzer:
             "report",
         ]
 
-    def analyze_news_sentiment(
-        self, news_articles: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+    def analyze_news_sentiment(self, news_articles: list[dict[str, Any]]) -> dict[str, Any]:
         """
         Analyze sentiment of news articles for a symbol
 
@@ -175,12 +175,8 @@ class NewsAnalyzer:
         """Calculate sentiment based on keyword matching"""
         text_lower = text.lower()
 
-        positive_matches = sum(
-            1 for keyword in self.positive_keywords if keyword in text_lower
-        )
-        negative_matches = sum(
-            1 for keyword in self.negative_keywords if keyword in text_lower
-        )
+        positive_matches = sum(1 for keyword in self.positive_keywords if keyword in text_lower)
+        negative_matches = sum(1 for keyword in self.negative_keywords if keyword in text_lower)
 
         total_matches = positive_matches + negative_matches
 
@@ -188,10 +184,9 @@ class NewsAnalyzer:
             return 0.0
 
         # Normalize to -1 to 1 range
-        sentiment = (positive_matches - negative_matches) / total_matches
-        return sentiment
+        return (positive_matches - negative_matches) / total_matches
 
-    def _empty_sentiment_result(self) -> Dict[str, Any]:
+    def _empty_sentiment_result(self) -> dict[str, Any]:
         """Return empty sentiment result"""
         return {
             "sentiment_score": 0.0,
@@ -203,9 +198,7 @@ class NewsAnalyzer:
             "neutral_count": 0,
         }
 
-    def get_news_signals(
-        self, symbols: List[str], hours_back: int = 24
-    ) -> Dict[str, Dict[str, Any]]:
+    def get_news_signals(self, symbols: list[str], hours_back: int = 24) -> dict[str, dict[str, Any]]:
         """
         Generate trading signals based on news sentiment analysis
 
@@ -221,9 +214,7 @@ class NewsAnalyzer:
         for symbol in symbols:
             try:
                 # Get recent news for the symbol
-                news_articles = self.alpaca_client.trading.news.get_news(
-                    symbol=symbol, limit=20
-                )
+                news_articles = self.alpaca_client.trading.news.get_news(symbol=symbol, limit=20)
 
                 # Filter news by time window
                 cutoff_time = datetime.now() - timedelta(hours=hours_back)
@@ -232,9 +223,7 @@ class NewsAnalyzer:
                 for article in news_articles:
                     try:
                         # Parse article timestamp
-                        article_time = datetime.fromisoformat(
-                            article.get("publish_date", "").replace("Z", "+00:00")
-                        )
+                        article_time = datetime.fromisoformat(article.get("publish_date", "").replace("Z", "+00:00"))
                         if article_time >= cutoff_time:
                             recent_articles.append(article)
                     except Exception:
@@ -254,7 +243,7 @@ class NewsAnalyzer:
                 }
 
             except Exception as e:
-                logger.error(f"Error analyzing news for {symbol}: {e}")
+                logger.exception(f"Error analyzing news for {symbol}: {e}")
                 signals[symbol] = {
                     "sentiment_analysis": self._empty_sentiment_result(),
                     "trading_signal": None,
@@ -264,9 +253,7 @@ class NewsAnalyzer:
 
         return signals
 
-    def _sentiment_to_signal(
-        self, symbol: str, sentiment_result: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+    def _sentiment_to_signal(self, symbol: str, sentiment_result: dict[str, Any]) -> dict[str, Any] | None:
         """Convert sentiment analysis to trading signal"""
         sentiment_score = sentiment_result["sentiment_score"]
         confidence = sentiment_result["confidence"]
@@ -290,7 +277,7 @@ class NewsAnalyzer:
                     "signal_source": "positive_news_sentiment",
                 },
             }
-        elif sentiment_score < -0.3 and confidence > 0.7:
+        if sentiment_score < -0.3 and confidence > 0.7:
             return {
                 "symbol": symbol,
                 "strategy_name": "news_sentiment",
@@ -306,9 +293,7 @@ class NewsAnalyzer:
 
         return None
 
-    def analyze_sector_sentiment(
-        self, sector_symbols: Dict[str, List[str]]
-    ) -> Dict[str, Dict[str, Any]]:
+    def analyze_sector_sentiment(self, sector_symbols: dict[str, list[str]]) -> dict[str, dict[str, Any]]:
         """
         Analyze sentiment by sector
 
@@ -329,7 +314,7 @@ class NewsAnalyzer:
                 sector_scores = []
                 total_articles = 0
 
-                for symbol, signal_data in symbol_signals.items():
+                for _symbol, signal_data in symbol_signals.items():
                     sentiment = signal_data["sentiment_analysis"]
                     if sentiment["article_count"] > 0:
                         sector_scores.append(sentiment["sentiment_score"])
@@ -357,7 +342,7 @@ class NewsAnalyzer:
                     }
 
             except Exception as e:
-                logger.error(f"Error analyzing sector {sector}: {e}")
+                logger.exception(f"Error analyzing sector {sector}: {e}")
                 sector_sentiment[sector] = {
                     "error": str(e),
                     "symbol_count": len(symbols),
@@ -370,14 +355,11 @@ class NewsAnalyzer:
         """Convert sentiment score to label"""
         if score > 0.1:
             return "positive"
-        elif score < -0.1:
+        if score < -0.1:
             return "negative"
-        else:
-            return "neutral"
+        return "neutral"
 
-    def get_trending_topics(
-        self, news_articles: List[Dict[str, Any]], top_n: int = 10
-    ) -> List[Dict[str, Any]]:
+    def get_trending_topics(self, news_articles: list[dict[str, Any]], top_n: int = 10) -> list[dict[str, Any]]:
         """
         Extract trending topics from news articles
 
@@ -455,9 +437,7 @@ class NewsAnalyzer:
         # Sort by frequency and create topic list
         trending_topics = []
 
-        for word, freq in sorted(word_freq.items(), key=lambda x: x[1], reverse=True)[
-            :top_n
-        ]:
+        for word, freq in sorted(word_freq.items(), key=lambda x: x[1], reverse=True)[:top_n]:
             avg_sentiment = sum(word_sentiment[word]) / len(word_sentiment[word])
 
             trending_topics.append(

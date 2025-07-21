@@ -2,12 +2,14 @@
 Repository Pattern for Database Layer - Enhanced
 """
 
-from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
-import sqlite3
-import pandas as pd
-from datetime import datetime, date
+import builtins
 import logging
+import sqlite3
+from abc import ABC, abstractmethod
+from datetime import date, datetime
+from typing import Any
+
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -16,46 +18,41 @@ class BaseRepository(ABC):
     """Abstract base repository interface"""
 
     @abstractmethod
-    def add(self, item: Dict[str, Any]) -> str:
+    def add(self, item: dict[str, Any]) -> str:
         """Add new item and return ID"""
-        pass
 
     @abstractmethod
-    def get(self, id_: str) -> Optional[Dict[str, Any]]:
+    def get(self, id_: str) -> dict[str, Any] | None:
         """Get item by ID"""
-        pass
 
     @abstractmethod
-    def list(self, **filters) -> List[Dict[str, Any]]:
+    def list(self, **filters) -> list[dict[str, Any]]:
         """List items with optional filters"""
-        pass
 
     @abstractmethod
-    def update(self, id_: str, updates: Dict[str, Any]) -> bool:
+    def update(self, id_: str, updates: dict[str, Any]) -> bool:
         """Update item by ID"""
-        pass
 
     @abstractmethod
     def delete(self, id_: str) -> bool:
         """Delete item by ID"""
-        pass
 
 
 class SQLiteRepository(BaseRepository):
     """SQLite implementation of repository pattern"""
 
-    def __init__(self, db_path: str, table_name: str):
+    def __init__(self, db_path: str, table_name: str) -> None:
         self.db_path = db_path
         self.table_name = table_name
         self._init_db()
 
-    def _init_db(self):
+    def _init_db(self) -> None:
         """Initialize database and create tables if needed"""
         with sqlite3.connect(self.db_path) as conn:
             # Enable foreign key constraints
             conn.execute("PRAGMA foreign_keys = ON")
 
-    def _execute_query(self, query: str, params: tuple = ()) -> List[Dict[str, Any]]:
+    def _execute_query(self, query: str, params: tuple = ()) -> list[dict[str, Any]]:
         """Execute query and return results as list of dicts"""
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
@@ -75,11 +72,11 @@ class SQLiteRepository(BaseRepository):
 class StockDataRepository(SQLiteRepository):
     """Repository for stock market data"""
 
-    def __init__(self, db_path: str):
+    def __init__(self, db_path: str) -> None:
         super().__init__(db_path, "stock_data")
         self._create_tables()
 
-    def _create_tables(self):
+    def _create_tables(self) -> None:
         """Create stock data tables"""
         create_table_sql = """
         CREATE TABLE IF NOT EXISTS stock_data (
@@ -99,7 +96,7 @@ class StockDataRepository(SQLiteRepository):
         """
 
         create_index_sql = """
-        CREATE INDEX IF NOT EXISTS idx_stock_data_symbol_date 
+        CREATE INDEX IF NOT EXISTS idx_stock_data_symbol_date
         ON stock_data(symbol, date)
         """
 
@@ -108,10 +105,10 @@ class StockDataRepository(SQLiteRepository):
             conn.execute(create_index_sql)
             conn.commit()
 
-    def add(self, item: Dict[str, Any]) -> str:
+    def add(self, item: dict[str, Any]) -> str:
         """Add stock data record"""
         query = """
-        INSERT OR REPLACE INTO stock_data 
+        INSERT OR REPLACE INTO stock_data
         (symbol, date, open, high, low, close, volume, vwap, trade_count, last_updated)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
@@ -135,17 +132,17 @@ class StockDataRepository(SQLiteRepository):
             conn.commit()
             return str(cursor.lastrowid)
 
-    def add_or_update(self, item: Dict[str, Any]) -> str:
+    def add_or_update(self, item: dict[str, Any]) -> str:
         """Add or update stock data record"""
         return self.add(item)  # Uses INSERT OR REPLACE
 
-    def get(self, id_: str) -> Optional[Dict[str, Any]]:
+    def get(self, id_: str) -> dict[str, Any] | None:
         """Get stock data by ID"""
         query = "SELECT * FROM stock_data WHERE id = ?"
         results = self._execute_query(query, (id_,))
         return results[0] if results else None
 
-    def list(self, **filters) -> List[Dict[str, Any]]:
+    def list(self, **filters) -> list[dict[str, Any]]:
         """List stock data with filters"""
         query = "SELECT * FROM stock_data WHERE 1=1"
         params = []
@@ -169,12 +166,12 @@ class StockDataRepository(SQLiteRepository):
 
         return self._execute_query(query, tuple(params))
 
-    def update(self, id_: str, updates: Dict[str, Any]) -> bool:
+    def update(self, id_: str, updates: dict[str, Any]) -> bool:
         """Update stock data by ID"""
-        set_clause = ", ".join([f"{key} = ?" for key in updates.keys()])
+        set_clause = ", ".join([f"{key} = ?" for key in updates])
         query = f"UPDATE stock_data SET {set_clause} WHERE id = ?"
 
-        params = list(updates.values()) + [id_]
+        params = [*list(updates.values()), id_]
         affected_rows = self._execute_update(query, tuple(params))
         return affected_rows > 0
 
@@ -184,9 +181,7 @@ class StockDataRepository(SQLiteRepository):
         affected_rows = self._execute_update(query, (id_,))
         return affected_rows > 0
 
-    def get_data_by_symbol_and_date_range(
-        self, symbol: str, start_date: str = None, end_date: str = None
-    ) -> pd.DataFrame:
+    def get_data_by_symbol_and_date_range(self, symbol: str, start_date: str | None = None, end_date: str | None = None) -> pd.DataFrame:
         """Get stock data as DataFrame"""
         filters = {"symbol": symbol}
         if start_date:
@@ -197,7 +192,7 @@ class StockDataRepository(SQLiteRepository):
         data = self.list(**filters)
         return pd.DataFrame(data)
 
-    def get_latest_date(self, symbol: str) -> Optional[date]:
+    def get_latest_date(self, symbol: str) -> date | None:
         """Get latest date for a symbol"""
         query = "SELECT MAX(date) as latest_date FROM stock_data WHERE symbol = ?"
         results = self._execute_query(query, (symbol,))
@@ -210,11 +205,11 @@ class StockDataRepository(SQLiteRepository):
 class SymbolRepository(SQLiteRepository):
     """Repository for symbol metadata"""
 
-    def __init__(self, db_path: str):
+    def __init__(self, db_path: str) -> None:
         super().__init__(db_path, "symbols")
         self._create_tables()
 
-    def _create_tables(self):
+    def _create_tables(self) -> None:
         """Create symbols table"""
         create_table_sql = """
         CREATE TABLE IF NOT EXISTS symbols (
@@ -235,7 +230,7 @@ class SymbolRepository(SQLiteRepository):
         """
 
         create_index_sql = """
-        CREATE INDEX IF NOT EXISTS idx_symbols_symbol 
+        CREATE INDEX IF NOT EXISTS idx_symbols_symbol
         ON symbols(symbol)
         """
 
@@ -244,11 +239,11 @@ class SymbolRepository(SQLiteRepository):
             conn.execute(create_index_sql)
             conn.commit()
 
-    def add(self, item: Dict[str, Any]) -> str:
+    def add(self, item: dict[str, Any]) -> str:
         """Add symbol record"""
         query = """
-        INSERT OR REPLACE INTO symbols 
-        (symbol, name, exchange, asset_class, tradable, marginable, shortable, 
+        INSERT OR REPLACE INTO symbols
+        (symbol, name, exchange, asset_class, tradable, marginable, shortable,
          easy_to_borrow, fractionable, active, metadata, last_updated)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
@@ -274,23 +269,23 @@ class SymbolRepository(SQLiteRepository):
             conn.commit()
             return str(cursor.lastrowid)
 
-    def add_or_update(self, item: Dict[str, Any]) -> str:
+    def add_or_update(self, item: dict[str, Any]) -> str:
         """Add or update symbol record"""
         return self.add(item)  # Uses INSERT OR REPLACE
 
-    def get(self, id_: str) -> Optional[Dict[str, Any]]:
+    def get(self, id_: str) -> dict[str, Any] | None:
         """Get symbol by ID"""
         query = "SELECT * FROM symbols WHERE id = ?"
         results = self._execute_query(query, (id_,))
         return results[0] if results else None
 
-    def get_by_symbol(self, symbol: str) -> Optional[Dict[str, Any]]:
+    def get_by_symbol(self, symbol: str) -> dict[str, Any] | None:
         """Get symbol data by symbol name"""
         query = "SELECT * FROM symbols WHERE symbol = ?"
         results = self._execute_query(query, (symbol,))
         return results[0] if results else None
 
-    def list(self, **filters) -> List[Dict[str, Any]]:
+    def list(self, **filters) -> list[dict[str, Any]]:
         """List symbols with filters"""
         query = "SELECT * FROM symbols WHERE 1=1"
         params = []
@@ -314,12 +309,12 @@ class SymbolRepository(SQLiteRepository):
 
         return self._execute_query(query, tuple(params))
 
-    def update(self, id_: str, updates: Dict[str, Any]) -> bool:
+    def update(self, id_: str, updates: dict[str, Any]) -> bool:
         """Update symbol by ID"""
-        set_clause = ", ".join([f"{key} = ?" for key in updates.keys()])
+        set_clause = ", ".join([f"{key} = ?" for key in updates])
         query = f"UPDATE symbols SET {set_clause} WHERE id = ?"
 
-        params = list(updates.values()) + [id_]
+        params = [*list(updates.values()), id_]
         affected_rows = self._execute_update(query, tuple(params))
         return affected_rows > 0
 
@@ -329,7 +324,7 @@ class SymbolRepository(SQLiteRepository):
         affected_rows = self._execute_update(query, (id_,))
         return affected_rows > 0
 
-    def get_active_symbols(self, limit: int = None) -> List[str]:
+    def get_active_symbols(self, limit: int | None = None) -> builtins.list[str]:
         """Get list of active symbol names"""
         query = "SELECT symbol FROM symbols WHERE active = 1 AND tradable = 1 ORDER BY symbol"
         if limit:
@@ -338,7 +333,7 @@ class SymbolRepository(SQLiteRepository):
         results = self._execute_query(query)
         return [row["symbol"] for row in results]
 
-    def update_metadata(self, symbol: str, metadata: Dict[str, Any]):
+    def update_metadata(self, symbol: str, metadata: dict[str, Any]) -> None:
         """Update metadata for a symbol"""
         import json
 
@@ -350,11 +345,11 @@ class SymbolRepository(SQLiteRepository):
 class SignalRepository(SQLiteRepository):
     """Repository for trading signals"""
 
-    def __init__(self, db_path: str):
+    def __init__(self, db_path: str) -> None:
         super().__init__(db_path, "signals")
         self._create_tables()
 
-    def _create_tables(self):
+    def _create_tables(self) -> None:
         """Create signals table - compatible with SQLModel models"""
         create_table_sql = """
         CREATE TABLE IF NOT EXISTS signals (
@@ -372,7 +367,7 @@ class SignalRepository(SQLiteRepository):
         """
 
         create_index_sql = """
-        CREATE INDEX IF NOT EXISTS idx_signals_symbol_generated_at 
+        CREATE INDEX IF NOT EXISTS idx_signals_symbol_generated_at
         ON signals(symbol, generated_at)
         """
 
@@ -381,10 +376,10 @@ class SignalRepository(SQLiteRepository):
             conn.execute(create_index_sql)
             conn.commit()
 
-    def add(self, item: Dict[str, Any]) -> str:
+    def add(self, item: dict[str, Any]) -> str:
         """Add signal record"""
         query = """
-        INSERT INTO signals 
+        INSERT INTO signals
         (symbol, direction, confidence_score, strength, generated_at, price_at_signal, strategy_count, contributing_strategies, status)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
@@ -407,13 +402,13 @@ class SignalRepository(SQLiteRepository):
             conn.commit()
             return str(cursor.lastrowid)
 
-    def get(self, id_: str) -> Optional[Dict[str, Any]]:
+    def get(self, id_: str) -> dict[str, Any] | None:
         """Get signal by ID"""
         query = "SELECT * FROM signals WHERE id = ?"
         results = self._execute_query(query, (id_,))
         return results[0] if results else None
 
-    def list(self, **filters) -> List[Dict[str, Any]]:
+    def list(self, **filters) -> list[dict[str, Any]]:
         """List signals with filters"""
         query = "SELECT * FROM signals WHERE 1=1"
         params = []
@@ -441,12 +436,12 @@ class SignalRepository(SQLiteRepository):
 
         return self._execute_query(query, tuple(params))
 
-    def update(self, id_: str, updates: Dict[str, Any]) -> bool:
+    def update(self, id_: str, updates: dict[str, Any]) -> bool:
         """Update signal by ID"""
-        set_clause = ", ".join([f"{key} = ?" for key in updates.keys()])
+        set_clause = ", ".join([f"{key} = ?" for key in updates])
         query = f"UPDATE signals SET {set_clause} WHERE id = ?"
 
-        params = list(updates.values()) + [id_]
+        params = [*list(updates.values()), id_]
         affected_rows = self._execute_update(query, tuple(params))
         return affected_rows > 0
 
@@ -456,7 +451,7 @@ class SignalRepository(SQLiteRepository):
         affected_rows = self._execute_update(query, (id_,))
         return affected_rows > 0
 
-    def mark_processed(self, signal_ids: List[str]) -> bool:
+    def mark_processed(self, signal_ids: builtins.list[str]) -> bool:
         """Mark signals as processed"""
         if not signal_ids:
             return True
@@ -466,7 +461,7 @@ class SignalRepository(SQLiteRepository):
         affected_rows = self._execute_update(query, tuple(signal_ids))
         return affected_rows > 0
 
-    def get_unprocessed_signals(self, symbol: str = None) -> List[Dict[str, Any]]:
+    def get_unprocessed_signals(self, symbol: str | None = None) -> builtins.list[dict[str, Any]]:
         """Get unprocessed signals"""
         filters = {"processed": False}
         if symbol:
@@ -477,11 +472,11 @@ class SignalRepository(SQLiteRepository):
 class BrokerRepository(SQLiteRepository):
     """Repository for broker-specific data and operations"""
 
-    def __init__(self, db_path: str):
+    def __init__(self, db_path: str) -> None:
         super().__init__(db_path, "brokers")
         self._create_tables()
 
-    def _create_tables(self):
+    def _create_tables(self) -> None:
         """Create broker-related tables"""
         create_broker_table_sql = """
         CREATE TABLE IF NOT EXISTS brokers (
@@ -518,19 +513,19 @@ class BrokerRepository(SQLiteRepository):
             conn.commit()
 
     # Broker Methods
-    def add_broker(self, broker_data: Dict[str, Any]) -> str:
+    def add_broker(self, broker_data: dict[str, Any]) -> str:
         """Add a new broker"""
         return self.add(broker_data)
 
-    def get_broker(self, id_: str) -> Optional[Dict[str, Any]]:
+    def get_broker(self, id_: str) -> dict[str, Any] | None:
         """Get broker by ID"""
         return self.get(id_)
 
-    def list_brokers(self) -> List[Dict[str, Any]]:
+    def list_brokers(self) -> list[dict[str, Any]]:
         """List all brokers"""
         return self.list()
 
-    def update_broker(self, id_: str, updates: Dict[str, Any]) -> bool:
+    def update_broker(self, id_: str, updates: dict[str, Any]) -> bool:
         """Update broker information"""
         return self.update(id_, updates)
 
@@ -539,96 +534,81 @@ class BrokerRepository(SQLiteRepository):
         return self.delete(id_)
 
     # Broker Account Methods
-    def get_broker_account(self, broker_name: str) -> Optional[Dict[str, Any]]:
+    def get_broker_account(self, broker_name: str) -> dict[str, Any] | None:
         """Get broker account by broker name"""
         return self._get_single("broker_accounts", {"broker_name": broker_name})
 
-    def create_broker_account(self, account_data: Dict[str, Any]) -> str:
+    def create_broker_account(self, account_data: dict[str, Any]) -> str:
         """Create new broker account record"""
         return self._insert("broker_accounts", account_data)
 
-    def update_broker_account(
-        self, broker_name: str, account_data: Dict[str, Any]
-    ) -> bool:
+    def update_broker_account(self, broker_name: str, account_data: dict[str, Any]) -> bool:
         """Update broker account information"""
-        return self._update(
-            "broker_accounts", {"broker_name": broker_name}, account_data
-        )
+        return self._update("broker_accounts", {"broker_name": broker_name}, account_data)
 
-    def list_broker_accounts(self) -> List[Dict[str, Any]]:
+    def list_broker_accounts(self) -> list[dict[str, Any]]:
         """List all broker accounts"""
         return self._list("broker_accounts")
 
     # Enhanced Order Methods with Broker Support
-    def get_orders_by_broker(
-        self, broker_name: str, status: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+    def get_orders_by_broker(self, broker_name: str, status: str | None = None) -> list[dict[str, Any]]:
         """Get orders for specific broker"""
         filters = {"broker_name": broker_name}
         if status:
             filters["status"] = status
         return self._list("orders", filters)
 
-    def get_order_by_broker_order_id(
-        self, broker_name: str, broker_order_id: str
-    ) -> Optional[Dict[str, Any]]:
+    def get_order_by_broker_order_id(self, broker_name: str, broker_order_id: str) -> dict[str, Any] | None:
         """Get order by broker name and broker order ID"""
-        return self._get_single(
-            "orders", {"broker_name": broker_name, "broker_order_id": broker_order_id}
-        )
+        return self._get_single("orders", {"broker_name": broker_name, "broker_order_id": broker_order_id})
 
-    def create_order(self, order_data: Dict[str, Any]) -> str:
+    def create_order(self, order_data: dict[str, Any]) -> str:
         """Create new order record"""
         return self._insert("orders", order_data)
 
     # Enhanced Position Methods with Broker Support
-    def get_positions_by_broker(self, broker_name: str) -> List[Dict[str, Any]]:
+    def get_positions_by_broker(self, broker_name: str) -> list[dict[str, Any]]:
         """Get positions for specific broker"""
         return self._list("positions", {"broker_name": broker_name})
 
-    def get_position_by_broker_symbol(
-        self, broker_name: str, symbol: str
-    ) -> Optional[Dict[str, Any]]:
+    def get_position_by_broker_symbol(self, broker_name: str, symbol: str) -> dict[str, Any] | None:
         """Get position for specific broker and symbol"""
         return self._get_single(
             "positions",
             {"broker_name": broker_name, "symbol": symbol, "status": "open"},
         )
 
-    def upsert_position(self, position_data: Dict[str, Any]) -> str:
+    def upsert_position(self, position_data: dict[str, Any]) -> str:
         """Insert or update position record"""
-        existing = self.get_position_by_broker_symbol(
-            position_data["broker_name"], position_data["symbol"]
-        )
+        existing = self.get_position_by_broker_symbol(position_data["broker_name"], position_data["symbol"])
 
         if existing:
             # Update existing position
             self._update("positions", {"id": existing["id"]}, position_data)
             return existing["id"]
-        else:
-            # Create new position
-            return self._insert("positions", position_data)
+        # Create new position
+        return self._insert("positions", position_data)
 
     # Cross-Broker Analytics Methods
-    def get_total_portfolio_value_by_broker(self) -> Dict[str, float]:
+    def get_total_portfolio_value_by_broker(self) -> dict[str, float]:
         """Get portfolio value breakdown by broker"""
         query = """
         SELECT broker_name, SUM(portfolio_value) as total_value
-        FROM broker_accounts 
+        FROM broker_accounts
         GROUP BY broker_name
         """
         results = self._execute_query(query)
         return {row["broker_name"]: row["total_value"] for row in results}
 
-    def get_position_summary_by_broker(self) -> Dict[str, Dict[str, Any]]:
+    def get_position_summary_by_broker(self) -> dict[str, dict[str, Any]]:
         """Get position summary by broker"""
         query = """
-        SELECT 
+        SELECT
             broker_name,
             COUNT(*) as position_count,
             SUM(quantity * avg_entry_price) as total_market_value,
             SUM(unrealized_pnl) as total_unrealized_pnl
-        FROM positions 
+        FROM positions
         WHERE status = 'open'
         GROUP BY broker_name
         """
@@ -643,11 +623,11 @@ class BrokerRepository(SQLiteRepository):
             }
         return summary
 
-    def get_cross_broker_symbol_exposure(self, symbol: str) -> List[Dict[str, Any]]:
+    def get_cross_broker_symbol_exposure(self, symbol: str) -> list[dict[str, Any]]:
         """Get exposure to a symbol across all brokers"""
         query = """
         SELECT broker_name, quantity, avg_entry_price, unrealized_pnl
-        FROM positions 
+        FROM positions
         WHERE symbol = ? AND status = 'open'
         """
         return self._execute_query(query, (symbol,))

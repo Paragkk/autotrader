@@ -12,7 +12,7 @@ if src_dir not in sys.path:
     sys.path.insert(0, src_dir)
 
 
-def main():
+def main() -> None:
     """Main dashboard function"""
     try:
         import streamlit as st
@@ -29,8 +29,9 @@ def main():
 
         # Simple API test
         try:
-            import requests
             import os
+
+            import requests
 
             API_BASE_URL = os.getenv("AUTOTRADER_API_BASE_URL", "http://localhost:8080")
             response = requests.get(f"{API_BASE_URL}/health", timeout=5)
@@ -63,11 +64,9 @@ def main():
         - [Portfolio](http://localhost:8080/api/portfolio)
         """)
 
-    except ImportError as e:
-        print(f"Failed to import streamlit: {e}")
+    except ImportError:
         sys.exit(1)
-    except Exception as e:
-        print(f"Dashboard error: {e}")
+    except Exception:
         import traceback
 
         traceback.print_exc()

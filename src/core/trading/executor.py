@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import Dict, Optional
 
 
 class TradeExecutor:
@@ -7,11 +6,11 @@ class TradeExecutor:
     Handles the execution of trades through the broker interface.
     """
 
-    def __init__(self, broker_adapter):
+    def __init__(self, broker_adapter) -> None:
         self.broker = broker_adapter
-        self.order_history: Dict[str, Dict] = {}
+        self.order_history: dict[str, dict] = {}
 
-    def place_order(self, order_params: Dict) -> Dict:
+    def place_order(self, order_params: dict) -> dict:
         """
         Place a new order through the broker.
 
@@ -59,7 +58,7 @@ class TradeExecutor:
 
             return {"order_id": order_id, "status": "failed", "error": str(e)}
 
-    def cancel_order(self, order_id: str) -> Dict:
+    def cancel_order(self, order_id: str) -> dict:
         """Cancel an existing order."""
         if order_id not in self.order_history:
             return {"status": "error", "message": "Order not found"}
@@ -79,7 +78,7 @@ class TradeExecutor:
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
-    def get_order_status(self, order_id: str) -> Optional[Dict]:
+    def get_order_status(self, order_id: str) -> dict | None:
         """Get the current status of an order."""
         if order_id not in self.order_history:
             return None
@@ -98,9 +97,7 @@ class TradeExecutor:
 
         return order
 
-    def get_all_orders(
-        self, symbol: Optional[str] = None, status: Optional[str] = None
-    ) -> Dict[str, Dict]:
+    def get_all_orders(self, symbol: str | None = None, status: str | None = None) -> dict[str, dict]:
         """Get all orders, optionally filtered by symbol and/or status."""
         filtered_orders = {}
 

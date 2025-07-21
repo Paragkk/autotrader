@@ -4,21 +4,21 @@ This is an example of how to create a new broker adapter
 """
 
 import logging
-from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
+from typing import Any
 
 from ..base import (
+    AccountInfo,
+    BarData,
     BrokerAdapter,
+    BrokerConnectionError,
     OrderRequest,
     OrderResponse,
-    Position,
-    AccountInfo,
-    Quote,
-    BarData,
     OrderSide,
-    OrderType,
     OrderStatus,
-    BrokerConnectionError,
+    OrderType,
+    Position,
+    Quote,
 )
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ class DemoBrokerAdapter(BrokerAdapter):
         """Return the broker name"""
         return "demo_broker"
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]) -> None:
         """
         Initialize Demo broker adapter with configuration
 
@@ -41,23 +41,17 @@ class DemoBrokerAdapter(BrokerAdapter):
         """
         # Extract required configuration
         self.api_key = config.get("api_key") or config.get("demo_api_key")
-        self.api_secret = (
-            config.get("api_secret")
-            or config.get("secret_key")
-            or config.get("demo_secret_key")
-        )
-        self.paper_trading = config.get(
-            "paper_trading", config.get("use_paper_trading", True)
-        )
+        self.api_secret = config.get("api_secret") or config.get("secret_key") or config.get("demo_secret_key")
+        self.paper_trading = config.get("paper_trading", config.get("use_paper_trading", True))
         self.base_url = config.get("base_url", "https://demo-api.example.com")
 
         # Validate required fields
         if not self.api_key:
-            raise ValueError("Missing required configuration: api_key or demo_api_key")
+            msg = "Missing required configuration: api_key or demo_api_key"
+            raise ValueError(msg)
         if not self.api_secret:
-            raise ValueError(
-                "Missing required configuration: api_secret, secret_key, or demo_secret_key"
-            )
+            msg = "Missing required configuration: api_secret, secret_key, or demo_secret_key"
+            raise ValueError(msg)
 
         # Store full config for other settings
         self.config = config
@@ -80,9 +74,10 @@ class DemoBrokerAdapter(BrokerAdapter):
             return True
 
         except Exception as e:
-            logger.error(f"❌ Failed to connect to Demo Broker: {e}")
+            logger.exception(f"❌ Failed to connect to Demo Broker: {e}")
             self._connected = False
-            raise BrokerConnectionError(f"Demo broker connection failed: {e}")
+            msg = f"Demo broker connection failed: {e}"
+            raise BrokerConnectionError(msg)
 
     async def disconnect(self) -> None:
         """Disconnect from Demo Broker API"""
@@ -98,7 +93,8 @@ class DemoBrokerAdapter(BrokerAdapter):
     async def get_account_info(self) -> AccountInfo:
         """Get account information"""
         if not self._connected:
-            raise BrokerConnectionError("Not connected to Demo Broker")
+            msg = "Not connected to Demo Broker"
+            raise BrokerConnectionError(msg)
 
         # Simulate account info
         return AccountInfo(
@@ -112,10 +108,11 @@ class DemoBrokerAdapter(BrokerAdapter):
             broker_specific_data={"demo": True},
         )
 
-    async def get_positions(self) -> List[Position]:
+    async def get_positions(self) -> list[Position]:
         """Get current positions"""
         if not self._connected:
-            raise BrokerConnectionError("Not connected to Demo Broker")
+            msg = "Not connected to Demo Broker"
+            raise BrokerConnectionError(msg)
 
         # Simulate empty positions for demo
         return []
@@ -123,12 +120,11 @@ class DemoBrokerAdapter(BrokerAdapter):
     async def place_order(self, order_request: OrderRequest) -> OrderResponse:
         """Place an order"""
         if not self._connected:
-            raise BrokerConnectionError("Not connected to Demo Broker")
+            msg = "Not connected to Demo Broker"
+            raise BrokerConnectionError(msg)
 
         # Simulate order placement
-        logger.info(
-            f"Demo Broker: Placing {order_request.side} order for {order_request.quantity} shares of {order_request.symbol}"
-        )
+        logger.info(f"Demo Broker: Placing {order_request.side} order for {order_request.quantity} shares of {order_request.symbol}")
 
         return OrderResponse(
             order_id=f"demo_order_{datetime.now().timestamp()}",
@@ -146,7 +142,8 @@ class DemoBrokerAdapter(BrokerAdapter):
     async def cancel_order(self, order_id: str) -> bool:
         """Cancel an order"""
         if not self._connected:
-            raise BrokerConnectionError("Not connected to Demo Broker")
+            msg = "Not connected to Demo Broker"
+            raise BrokerConnectionError(msg)
 
         logger.info(f"Demo Broker: Cancelling order {order_id}")
         return True
@@ -154,7 +151,8 @@ class DemoBrokerAdapter(BrokerAdapter):
     async def get_order_status(self, order_id: str) -> OrderResponse:
         """Get order status"""
         if not self._connected:
-            raise BrokerConnectionError("Not connected to Demo Broker")
+            msg = "Not connected to Demo Broker"
+            raise BrokerConnectionError(msg)
 
         # Simulate order status
         return OrderResponse(
@@ -173,19 +171,17 @@ class DemoBrokerAdapter(BrokerAdapter):
     async def get_quote(self, symbol: str) -> Quote:
         """Get current quote for symbol"""
         if not self._connected:
-            raise BrokerConnectionError("Not connected to Demo Broker")
+            msg = "Not connected to Demo Broker"
+            raise BrokerConnectionError(msg)
 
         # Simulate quote data
-        return Quote(
-            symbol=symbol, bid=99.50, ask=100.50, last=100.00, timestamp=datetime.now()
-        )
+        return Quote(symbol=symbol, bid=99.50, ask=100.50, last=100.00, timestamp=datetime.now())
 
-    async def get_bars(
-        self, symbol: str, timeframe: str, start: datetime, end: datetime
-    ) -> List[BarData]:
+    async def get_bars(self, symbol: str, timeframe: str, start: datetime, end: datetime) -> list[BarData]:
         """Get historical bar data"""
         if not self._connected:
-            raise BrokerConnectionError("Not connected to Demo Broker")
+            msg = "Not connected to Demo Broker"
+            raise BrokerConnectionError(msg)
 
         # Simulate bar data
         bars = []
@@ -206,10 +202,11 @@ class DemoBrokerAdapter(BrokerAdapter):
 
         return bars
 
-    async def get_watchlists(self) -> List[Dict[str, Any]]:
+    async def get_watchlists(self) -> list[dict[str, Any]]:
         """Get account watchlists"""
         if not self._connected:
-            raise BrokerConnectionError("Not connected to Demo Broker")
+            msg = "Not connected to Demo Broker"
+            raise BrokerConnectionError(msg)
 
         # Simulate watchlist
         return [
@@ -220,12 +217,11 @@ class DemoBrokerAdapter(BrokerAdapter):
             }
         ]
 
-    async def get_orders(
-        self, symbol: str = None, status: str = None, limit: int = 100
-    ) -> List[OrderResponse]:
+    async def get_orders(self, symbol: str | None = None, status: str | None = None, limit: int = 100) -> list[OrderResponse]:
         """Get account orders"""
         if not self._connected:
-            raise BrokerConnectionError("Not connected to Demo Broker")
+            msg = "Not connected to Demo Broker"
+            raise BrokerConnectionError(msg)
 
         # Simulate order data
         return [
@@ -243,10 +239,11 @@ class DemoBrokerAdapter(BrokerAdapter):
             )
         ]
 
-    async def get_position(self, symbol: str) -> Optional[Position]:
+    async def get_position(self, symbol: str) -> Position | None:
         """Get position for specific symbol"""
         if not self._connected:
-            raise BrokerConnectionError("Not connected to Demo Broker")
+            msg = "Not connected to Demo Broker"
+            raise BrokerConnectionError(msg)
 
         # Simulate position data
         return Position(
@@ -260,10 +257,11 @@ class DemoBrokerAdapter(BrokerAdapter):
             updated_at=datetime.now(),
         )
 
-    async def get_quotes(self, symbols: List[str]) -> Dict[str, Quote]:
+    async def get_quotes(self, symbols: list[str]) -> dict[str, Quote]:
         """Get quotes for multiple symbols"""
         if not self._connected:
-            raise BrokerConnectionError("Not connected to Demo Broker")
+            msg = "Not connected to Demo Broker"
+            raise BrokerConnectionError(msg)
 
         # Simulate quotes for multiple symbols
         quotes = {}
@@ -280,21 +278,21 @@ class DemoBrokerAdapter(BrokerAdapter):
     async def is_market_open(self) -> bool:
         """Check if market is open"""
         if not self._connected:
-            raise BrokerConnectionError("Not connected to Demo Broker")
+            msg = "Not connected to Demo Broker"
+            raise BrokerConnectionError(msg)
 
         # Simulate market hours (always open for demo)
         return True
 
-    async def get_market_hours(self, date: Optional[datetime] = None) -> Dict[str, Any]:
+    async def get_market_hours(self, date: datetime | None = None) -> dict[str, Any]:
         """Get market hours for a specific date"""
         if not self._connected:
-            raise BrokerConnectionError("Not connected to Demo Broker")
+            msg = "Not connected to Demo Broker"
+            raise BrokerConnectionError(msg)
 
         # Simulate market hours
         return {
-            "date": date.strftime("%Y-%m-%d")
-            if date
-            else datetime.now().strftime("%Y-%m-%d"),
+            "date": date.strftime("%Y-%m-%d") if date else datetime.now().strftime("%Y-%m-%d"),
             "is_open": True,
             "market_open": "09:30:00",
             "market_close": "16:00:00",

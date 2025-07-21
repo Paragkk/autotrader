@@ -3,11 +3,12 @@ Risk Management Module - Enhanced with Multiple Risk Controls
 """
 
 import logging
-from typing import Dict, List, Any, Tuple
-from datetime import datetime
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from brokers.base.broker_adapter import Position, AccountInfo, OrderRequest
+from datetime import datetime
+from typing import Any
+
+from brokers.base.broker_adapter import AccountInfo, OrderRequest, Position
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +37,7 @@ class RiskMetrics:
     daily_pnl_percent: float
     total_drawdown_percent: float
     position_count: int
-    sector_exposure: Dict[str, float]
+    sector_exposure: dict[str, float]
     correlation_risk: float
     liquidity_risk: float
     risk_score: float  # Overall risk score 0-1
@@ -50,14 +51,13 @@ class RiskRule(ABC):
         self,
         order_request: OrderRequest,
         account: AccountInfo,
-        positions: List[Position],
+        positions: list[Position],
         risk_params: RiskParameters,
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """
         Evaluate if order passes risk rule
         Returns: (approved, reason)
         """
-        pass
 
 
 class PositionSizeRule(RiskRule):
@@ -67,13 +67,11 @@ class PositionSizeRule(RiskRule):
         self,
         order_request: OrderRequest,
         account: AccountInfo,
-        positions: List[Position],
+        positions: list[Position],
         risk_params: RiskParameters,
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         order_value = order_request.quantity * (order_request.price or 0)
-        max_position_value = account.portfolio_value * (
-            risk_params.max_position_size_percent / 100
-        )
+        max_position_value = account.portfolio_value * (risk_params.max_position_size_percent / 100)
 
         if order_value > max_position_value:
             return (
@@ -91,16 +89,14 @@ class TotalExposureRule(RiskRule):
         self,
         order_request: OrderRequest,
         account: AccountInfo,
-        positions: List[Position],
+        positions: list[Position],
         risk_params: RiskParameters,
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         current_exposure = sum(pos.market_value for pos in positions)
         order_value = order_request.quantity * (order_request.price or 0)
         total_exposure = current_exposure + order_value
 
-        max_exposure = account.portfolio_value * (
-            risk_params.max_total_exposure_percent / 100
-        )
+        max_exposure = account.portfolio_value * (risk_params.max_total_exposure_percent / 100)
 
         if total_exposure > max_exposure:
             return (
@@ -118,9 +114,9 @@ class MaxPositionsRule(RiskRule):
         self,
         order_request: OrderRequest,
         account: AccountInfo,
-        positions: List[Position],
+        positions: list[Position],
         risk_params: RiskParameters,
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         # Check if this is a new position or adding to existing
         existing_position = any(pos.symbol == order_request.symbol for pos in positions)
 
@@ -140,9 +136,9 @@ class DailyLossRule(RiskRule):
         self,
         order_request: OrderRequest,
         account: AccountInfo,
-        positions: List[Position],
+        positions: list[Position],
         risk_params: RiskParameters,
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         # Calculate current daily P&L
         daily_pnl = sum(pos.unrealized_pl for pos in positions)
         daily_pnl_percent = (daily_pnl / account.portfolio_value) * 100
@@ -161,16 +157,16 @@ class DailyLossRule(RiskRule):
 class LiquidityRule(RiskRule):
     """Rule to ensure sufficient liquidity"""
 
-    def __init__(self, data_fetcher=None):
+    def __init__(self, data_fetcher=None) -> None:
         self.data_fetcher = data_fetcher
 
     def evaluate(
         self,
         order_request: OrderRequest,
         account: AccountInfo,
-        positions: List[Position],
+        positions: list[Position],
         risk_params: RiskParameters,
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         if not self.data_fetcher:
             return True, "Liquidity check skipped (no data fetcher)"
 
@@ -190,15 +186,15 @@ class RiskManager:
     Main risk management system with pluggable rules
     """
 
-    def __init__(self, risk_params: RiskParameters = None):
+    def __init__(self, risk_params: RiskParameters = None) -> None:
         self.risk_params = risk_params or RiskParameters()
-        self.rules: List[RiskRule] = []
-        self.active_stops: Dict[str, Dict[str, Any]] = {}  # Symbol -> stop loss info
+        self.rules: list[RiskRule] = []
+        self.active_stops: dict[str, dict[str, Any]] = {}  # Symbol -> stop loss info
 
         # Load default rules
         self._load_default_rules()
 
-    def _load_default_rules(self):
+    def _load_default_rules(self) -> None:
         """Load default risk rules"""
         self.rules = [
             PositionSizeRule(),
@@ -208,12 +204,12 @@ class RiskManager:
             LiquidityRule(),
         ]
 
-    def add_rule(self, rule: RiskRule):
+    def add_rule(self, rule: RiskRule) -> None:
         """Add a custom risk rule"""
         self.rules.append(rule)
         logger.info(f"Added risk rule: {rule.__class__.__name__}")
 
-    def remove_rule(self, rule_class):
+    def remove_rule(self, rule_class) -> None:
         """Remove a risk rule by class"""
         self.rules = [rule for rule in self.rules if not isinstance(rule, rule_class)]
         logger.info(f"Removed risk rule: {rule_class.__name__}")
@@ -222,8 +218,8 @@ class RiskManager:
         self,
         order_request: OrderRequest,
         account: AccountInfo,
-        positions: List[Position],
-    ) -> Tuple[bool, List[str]]:
+        positions: list[Position],
+    ) -> tuple[bool, list[str]]:
         """
         Evaluate an order against all risk rules
         Returns: (approved, list of reasons)
@@ -233,38 +229,30 @@ class RiskManager:
 
         for rule in self.rules:
             try:
-                rule_approved, reason = rule.evaluate(
-                    order_request, account, positions, self.risk_params
-                )
+                rule_approved, reason = rule.evaluate(order_request, account, positions, self.risk_params)
                 reasons.append(f"{rule.__class__.__name__}: {reason}")
 
                 if not rule_approved:
                     approved = False
 
             except Exception as e:
-                logger.error(f"Error evaluating rule {rule.__class__.__name__}: {e}")
-                reasons.append(f"{rule.__class__.__name__}: Error - {str(e)}")
+                logger.exception(f"Error evaluating rule {rule.__class__.__name__}: {e}")
+                reasons.append(f"{rule.__class__.__name__}: Error - {e!s}")
                 approved = False
 
         return approved, reasons
 
-    def apply_position_sizing(
-        self, order_request: OrderRequest, account: AccountInfo
-    ) -> OrderRequest:
+    def apply_position_sizing(self, order_request: OrderRequest, account: AccountInfo) -> OrderRequest:
         """
         Apply position sizing rules to order request
         """
-        max_position_value = account.portfolio_value * (
-            self.risk_params.max_position_size_percent / 100
-        )
+        max_position_value = account.portfolio_value * (self.risk_params.max_position_size_percent / 100)
 
         if order_request.price:
             max_quantity = max_position_value / order_request.price
 
             if order_request.quantity > max_quantity:
-                logger.info(
-                    f"Reducing position size from {order_request.quantity} to {max_quantity}"
-                )
+                logger.info(f"Reducing position size from {order_request.quantity} to {max_quantity}")
                 order_request.quantity = max_quantity
 
         return order_request
@@ -275,8 +263,8 @@ class RiskManager:
 
         if side.lower() == "buy":
             return entry_price * stop_loss_multiplier
-        else:  # sell/short
-            return entry_price * (2 - stop_loss_multiplier)
+        # sell/short
+        return entry_price * (2 - stop_loss_multiplier)
 
     def calculate_take_profit_price(self, entry_price: float, side: str) -> float:
         """Calculate take profit price based on risk parameters"""
@@ -284,12 +272,10 @@ class RiskManager:
 
         if side.lower() == "buy":
             return entry_price * take_profit_multiplier
-        else:  # sell/short
-            return entry_price * (2 - take_profit_multiplier)
+        # sell/short
+        return entry_price * (2 - take_profit_multiplier)
 
-    def set_stop_loss(
-        self, symbol: str, entry_price: float, side: str, broker_adapter=None
-    ):
+    def set_stop_loss(self, symbol: str, entry_price: float, side: str, broker_adapter=None) -> None:
         """Set stop loss for a position"""
         stop_price = self.calculate_stop_loss_price(entry_price, side)
 
@@ -314,12 +300,11 @@ class RiskManager:
                     order_type="stop",
                     stop_price=stop_price,
                 )
-                # broker_adapter.place_order(stop_order)
                 logger.info(f"Placed stop loss order for {symbol}")
             except Exception as e:
-                logger.error(f"Failed to place stop loss order for {symbol}: {e}")
+                logger.exception(f"Failed to place stop loss order for {symbol}: {e}")
 
-    def check_stop_losses(self, positions: List[Position]) -> List[str]:
+    def check_stop_losses(self, positions: list[Position]) -> list[str]:
         """Check if any stop losses should be triggered"""
         triggered_stops = []
 
@@ -336,38 +321,24 @@ class RiskManager:
                 # Check if stop should trigger
                 should_trigger = False
 
-                if side.lower() == "buy" and position.current_price <= stop_price:
-                    should_trigger = True
-                elif side.lower() == "sell" and position.current_price >= stop_price:
+                if (side.lower() == "buy" and position.current_price <= stop_price) or (side.lower() == "sell" and position.current_price >= stop_price):
                     should_trigger = True
 
                 if should_trigger:
                     triggered_stops.append(position.symbol)
                     self.active_stops[position.symbol]["active"] = False
-                    logger.warning(
-                        f"Stop loss triggered for {position.symbol} at {position.current_price}"
-                    )
+                    logger.warning(f"Stop loss triggered for {position.symbol} at {position.current_price}")
 
         return triggered_stops
 
-    def calculate_portfolio_risk_metrics(
-        self, account: AccountInfo, positions: List[Position]
-    ) -> RiskMetrics:
+    def calculate_portfolio_risk_metrics(self, account: AccountInfo, positions: list[Position]) -> RiskMetrics:
         """Calculate comprehensive risk metrics for the portfolio"""
 
         total_exposure = sum(pos.market_value for pos in positions)
-        exposure_percent = (
-            (total_exposure / account.portfolio_value) * 100
-            if account.portfolio_value > 0
-            else 0
-        )
+        exposure_percent = (total_exposure / account.portfolio_value) * 100 if account.portfolio_value > 0 else 0
 
         total_pnl = sum(pos.unrealized_pl for pos in positions)
-        daily_pnl_percent = (
-            (total_pnl / account.portfolio_value) * 100
-            if account.portfolio_value > 0
-            else 0
-        )
+        daily_pnl_percent = (total_pnl / account.portfolio_value) * 100 if account.portfolio_value > 0 else 0
 
         # Calculate drawdown (simplified - would need historical data for accurate calculation)
         drawdown_percent = min(0, daily_pnl_percent)
@@ -396,9 +367,7 @@ class RiskManager:
             risk_score=risk_score,
         )
 
-    def get_risk_summary(
-        self, account: AccountInfo, positions: List[Position]
-    ) -> Dict[str, Any]:
+    def get_risk_summary(self, account: AccountInfo, positions: list[Position]) -> dict[str, Any]:
         """Get comprehensive risk summary"""
         metrics = self.calculate_portfolio_risk_metrics(account, positions)
 
@@ -406,24 +375,17 @@ class RiskManager:
             "risk_metrics": metrics,
             "risk_parameters": self.risk_params,
             "active_rules": [rule.__class__.__name__ for rule in self.rules],
-            "active_stops": len(
-                [stop for stop in self.active_stops.values() if stop["active"]]
-            ),
+            "active_stops": len([stop for stop in self.active_stops.values() if stop["active"]]),
             "risk_alerts": self._generate_risk_alerts(metrics),
             "recommendations": self._generate_risk_recommendations(metrics),
         }
 
-    def _generate_risk_alerts(self, metrics: RiskMetrics) -> List[str]:
+    def _generate_risk_alerts(self, metrics: RiskMetrics) -> list[str]:
         """Generate risk alerts based on metrics"""
         alerts = []
 
-        if (
-            metrics.current_exposure_percent
-            > self.risk_params.max_total_exposure_percent
-        ):
-            alerts.append(
-                f"Portfolio exposure {metrics.current_exposure_percent:.1f}% exceeds limit"
-            )
+        if metrics.current_exposure_percent > self.risk_params.max_total_exposure_percent:
+            alerts.append(f"Portfolio exposure {metrics.current_exposure_percent:.1f}% exceeds limit")
 
         if metrics.daily_pnl_percent < -self.risk_params.max_daily_loss_percent:
             alerts.append(f"Daily loss {metrics.daily_pnl_percent:.1f}% exceeds limit")
@@ -436,7 +398,7 @@ class RiskManager:
 
         return alerts
 
-    def _generate_risk_recommendations(self, metrics: RiskMetrics) -> List[str]:
+    def _generate_risk_recommendations(self, metrics: RiskMetrics) -> list[str]:
         """Generate risk management recommendations"""
         recommendations = []
 
@@ -447,13 +409,11 @@ class RiskManager:
             recommendations.append("Consider consolidating positions")
 
         if metrics.risk_score > 0.6:
-            recommendations.append(
-                "Review risk parameters and consider tightening controls"
-            )
+            recommendations.append("Review risk parameters and consider tightening controls")
 
         return recommendations
 
-    def update_risk_parameters(self, new_params: Dict[str, Any]):
+    def update_risk_parameters(self, new_params: dict[str, Any]) -> None:
         """Update risk parameters"""
         for key, value in new_params.items():
             if hasattr(self.risk_params, key):

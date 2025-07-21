@@ -10,26 +10,20 @@ from pathlib import Path
 
 def run_command(cmd: list[str], description: str) -> bool:
     """Run a command and return success status"""
-    print(f"🔄 {description}...")
     try:
         result = subprocess.run(cmd, check=True, capture_output=True, text=True)
-        print(f"✅ {description} - Success")
         if result.stdout.strip():
-            print(f"   Output: {result.stdout.strip()}")
+            pass
         return True
-    except subprocess.CalledProcessError as e:
-        print(f"❌ {description} - Failed")
-        print(f"   Error: {e.stderr.strip() if e.stderr else str(e)}")
+    except subprocess.CalledProcessError:
         return False
 
 
-def main():
+def main() -> int:
     """Main setup function"""
-    print("🚀 Setting up pre-commit hooks with UV...")
 
     # Change to project root
-    project_root = Path(__file__).parent.parent
-    print(f"📁 Working in: {project_root}")
+    Path(__file__).parent.parent
 
     commands = [
         (["uv", "sync", "--dev"], "Installing dev dependencies"),
@@ -48,11 +42,9 @@ def main():
                 break
 
     if success:
-        print("\n🎉 Pre-commit setup complete!")
-        print("💡 Now when you commit, ruff will automatically check your code.")
-        print("🔧 To manually run checks: uv run pre-commit run --all-files")
+        pass
     else:
-        print("\n⚠️  Setup completed with some issues. Check the output above.")
+        pass
 
     return 0 if success else 1
 

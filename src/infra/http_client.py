@@ -3,9 +3,9 @@ Common HTTP Client Infrastructure
 Extracted from broker-specific implementations
 """
 
-from typing import Dict, Optional, Any
 import logging
 from abc import ABC, abstractmethod
+from typing import Any
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -17,19 +17,13 @@ logger = logging.getLogger(__name__)
 class HTTPClientError(Exception):
     """Base HTTP client error"""
 
-    pass
-
 
 class HTTPClientConnectionError(HTTPClientError):
     """HTTP connection error"""
 
-    pass
-
 
 class HTTPClientTimeoutError(HTTPClientError):
     """HTTP timeout error"""
-
-    pass
 
 
 class BaseHTTPClient(ABC):
@@ -40,13 +34,12 @@ class BaseHTTPClient(ABC):
         self,
         method: str,
         url: str,
-        headers: Optional[Dict[str, str]] = None,
-        params: Optional[Dict[str, Any]] = None,
-        json: Optional[Dict[str, Any]] = None,
+        headers: dict[str, str] | None = None,
+        params: dict[str, Any] | None = None,
+        json: dict[str, Any] | None = None,
         **kwargs,
     ) -> requests.Response:
         """Make HTTP request"""
-        pass
 
 
 class ReliableHTTPClient(BaseHTTPClient):
@@ -59,9 +52,9 @@ class ReliableHTTPClient(BaseHTTPClient):
         timeout: int = 30,
         retries: int = 3,
         backoff_factor: float = 2.0,
-        retry_statuses: list = None,
-        acceptable_statuses: list = None,
-    ):
+        retry_statuses: list | None = None,
+        acceptable_statuses: list | None = None,
+    ) -> None:
         """
         Initialize HTTP client with retry strategy
 
@@ -99,9 +92,9 @@ class ReliableHTTPClient(BaseHTTPClient):
         self,
         method: str,
         url: str,
-        headers: Optional[Dict[str, str]] = None,
-        params: Optional[Dict[str, Any]] = None,
-        json: Optional[Dict[str, Any]] = None,
+        headers: dict[str, str] | None = None,
+        params: dict[str, Any] | None = None,
+        json: dict[str, Any] | None = None,
         **kwargs,
     ) -> requests.Response:
         """
@@ -137,24 +130,26 @@ class ReliableHTTPClient(BaseHTTPClient):
             # Check if response status is acceptable
             if response.status_code not in self.acceptable_statuses:
                 logger.error(f"HTTP {response.status_code}: {response.text}")
-                raise HTTPClientError(
-                    f"Request failed with status {response.status_code}: {response.text}"
-                )
+                msg = f"Request failed with status {response.status_code}: {response.text}"
+                raise HTTPClientError(msg)
 
             logger.debug(f"Request successful: {response.status_code}")
             return response
 
         except requests.exceptions.Timeout as e:
-            logger.error(f"Request timeout: {e}")
-            raise HTTPClientTimeoutError(f"Request timeout: {e}")
+            logger.exception(f"Request timeout: {e}")
+            msg = f"Request timeout: {e}"
+            raise HTTPClientTimeoutError(msg)
 
         except requests.exceptions.ConnectionError as e:
-            logger.error(f"Connection error: {e}")
-            raise HTTPClientConnectionError(f"Connection error: {e}")
+            logger.exception(f"Connection error: {e}")
+            msg = f"Connection error: {e}"
+            raise HTTPClientConnectionError(msg)
 
         except requests.exceptions.RequestException as e:
-            logger.error(f"Request error: {e}")
-            raise HTTPClientError(f"Request error: {e}")
+            logger.exception(f"Request error: {e}")
+            msg = f"Request error: {e}"
+            raise HTTPClientError(msg)
 
     def get(self, url: str, **kwargs) -> requests.Response:
         """Make GET request"""
@@ -172,7 +167,7 @@ class ReliableHTTPClient(BaseHTTPClient):
         """Make DELETE request"""
         return self.request("DELETE", url, **kwargs)
 
-    def close(self):
+    def close(self) -> None:
         """Close the session"""
         if self.session:
             self.session.close()
@@ -183,7 +178,7 @@ class BrokerHTTPClient(ReliableHTTPClient):
     HTTP client specifically configured for broker APIs
     """
 
-    def __init__(self, base_url: str, auth_headers: Dict[str, str], **kwargs):
+    def __init__(self, base_url: str, auth_headers: dict[str, str], **kwargs) -> None:
         """
         Initialize broker HTTP client
 
@@ -203,7 +198,7 @@ class BrokerHTTPClient(ReliableHTTPClient):
         self,
         method: str,
         endpoint: str,
-        headers: Optional[Dict[str, str]] = None,
+        headers: dict[str, str] | None = None,
         **kwargs,
     ) -> requests.Response:
         """

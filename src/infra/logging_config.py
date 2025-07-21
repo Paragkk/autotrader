@@ -2,11 +2,10 @@
 Structured Logging Config with pathlib support
 """
 
+import json
 import logging
 import logging.handlers
 from pathlib import Path
-from typing import Optional, Union
-import json
 
 # Try to import json_log_formatter, fall back to standard JSON logging if not available
 try:
@@ -16,7 +15,7 @@ try:
 except ImportError:
     HAS_JSON_FORMATTER = False
 
-from .path_utils import get_logs_dir, ensure_directory
+from .path_utils import ensure_directory, get_logs_dir
 
 
 class SimpleJSONFormatter(logging.Formatter):
@@ -40,7 +39,7 @@ class SimpleJSONFormatter(logging.Formatter):
 
 def setup_logging(
     log_level: str = "INFO",
-    log_file: Optional[Union[str, Path]] = None,
+    log_file: str | Path | None = None,
     enable_json_logging: bool = True,
     enable_file_logging: bool = True,
     max_file_size: int = 10 * 1024 * 1024,  # 10MB
@@ -74,9 +73,7 @@ def setup_logging(
         else:
             console_formatter = SimpleJSONFormatter()
     else:
-        console_formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
+        console_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
     console_handler.setFormatter(console_formatter)
     logger.addHandler(console_handler)
@@ -97,13 +94,9 @@ def setup_logging(
         ensure_directory(log_file.parent)
 
         # Rotating file handler
-        file_handler = logging.handlers.RotatingFileHandler(
-            log_file, maxBytes=max_file_size, backupCount=backup_count, encoding="utf-8"
-        )
+        file_handler = logging.handlers.RotatingFileHandler(log_file, maxBytes=max_file_size, backupCount=backup_count, encoding="utf-8")
 
-        file_formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s"
-        )
+        file_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s")
 
         file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
@@ -146,9 +139,7 @@ def setup_simple_logging(log_level: str = "INFO") -> None:
 
     # Console handler with simple format
     console_handler = logging.StreamHandler()
-    console_formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
+    console_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     console_handler.setFormatter(console_formatter)
     logger.addHandler(console_handler)
 

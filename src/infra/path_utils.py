@@ -2,9 +2,8 @@
 Path utilities for uv-managed projects
 """
 
-from pathlib import Path
-from typing import Optional, Union
 import os
+from pathlib import Path
 
 
 def get_project_root() -> Path:
@@ -15,7 +14,7 @@ def get_project_root() -> Path:
     current_path = Path(__file__).resolve()
 
     # Look for pyproject.toml in current directory and parent directories
-    for parent in [current_path] + list(current_path.parents):
+    for parent in [current_path, *list(current_path.parents)]:
         if (parent / "pyproject.toml").exists():
             return parent
 
@@ -47,7 +46,7 @@ def get_config_dir() -> Path:
     return get_project_root() / "config"
 
 
-def resolve_project_path(path: Union[str, Path], relative_to: str = "root") -> Path:
+def resolve_project_path(path: str | Path, relative_to: str = "root") -> Path:
     """
     Resolve a path relative to different project directories.
 
@@ -77,7 +76,7 @@ def resolve_project_path(path: Union[str, Path], relative_to: str = "root") -> P
     return base_dir / path
 
 
-def ensure_directory(path: Union[str, Path]) -> Path:
+def ensure_directory(path: str | Path) -> Path:
     """
     Ensure a directory exists, creating it if necessary.
 
@@ -92,9 +91,7 @@ def ensure_directory(path: Union[str, Path]) -> Path:
     return path
 
 
-def get_env_path(
-    env_var: str, default: Union[str, Path], relative_to: str = "root"
-) -> Path:
+def get_env_path(env_var: str, default: str | Path, relative_to: str = "root") -> Path:
     """
     Get a path from environment variable with fallback to default.
 
@@ -112,7 +109,7 @@ def get_env_path(
     return resolve_project_path(default, relative_to)
 
 
-def safe_path_join(*parts: Union[str, Path]) -> Path:
+def safe_path_join(*parts: str | Path) -> Path:
     """
     Safely join path parts, handling both string and Path objects.
 
@@ -136,7 +133,7 @@ def is_uv_project() -> bool:
     return (get_project_root() / "uv.lock").exists()
 
 
-def get_uv_cache_dir() -> Optional[Path]:
+def get_uv_cache_dir() -> Path | None:
     """Get the uv cache directory if available."""
     if not is_uv_project():
         return None
@@ -155,7 +152,7 @@ def get_uv_cache_dir() -> Optional[Path]:
     return None
 
 
-def get_virtual_env_path() -> Optional[Path]:
+def get_virtual_env_path() -> Path | None:
     """Get the virtual environment path if available."""
     venv_path = os.getenv("VIRTUAL_ENV")
     if venv_path:

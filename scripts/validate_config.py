@@ -6,19 +6,19 @@ Validates broker-specific configuration files and provides detailed feedback
 
 import argparse
 import logging
-from pathlib import Path
-from typing import Dict, Any, List
 
 # Add src to path for imports
 import sys
+from pathlib import Path
+from typing import Any
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from infra.config import load_config, get_available_brokers
+from infra.config import get_available_brokers, load_config
 
 
 # Set up standardized logging for scripts
-def setup_script_logging():
+def setup_script_logging() -> None:
     """Setup consistent logging for standalone scripts"""
     root_logger = logging.getLogger()
     root_logger.handlers.clear()
@@ -26,9 +26,7 @@ def setup_script_logging():
 
     # Console handler with consistent format
     console_handler = logging.StreamHandler()
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     console_handler.setFormatter(formatter)
     root_logger.addHandler(console_handler)
 
@@ -37,9 +35,7 @@ setup_script_logging()
 logger = logging.getLogger(__name__)
 
 
-def validate_required_keys(
-    config: Dict[str, Any], required_keys: List[str], config_name: str
-) -> List[str]:
+def validate_required_keys(config: dict[str, Any], required_keys: list[str], config_name: str) -> list[str]:
     """
     Validate that required keys are present in config.
 
@@ -64,7 +60,7 @@ def validate_required_keys(
     return missing_keys
 
 
-def validate_alpaca_config(config: Dict[str, Any]) -> bool:
+def validate_alpaca_config(config: dict[str, Any]) -> bool:
     """
     Validate Alpaca-specific configuration.
 
@@ -97,9 +93,7 @@ def validate_alpaca_config(config: Dict[str, Any]) -> bool:
     if config.get("use_paper_trading") and config.get("base_url"):
         expected_paper_url = "https://paper-api.alpaca.markets"
         if config.get("base_url") != expected_paper_url:
-            logger.warning(
-                f"Paper trading enabled but base_url is not {expected_paper_url}"
-            )
+            logger.warning(f"Paper trading enabled but base_url is not {expected_paper_url}")
 
     # Validate numeric ranges
     max_positions = config.get("max_positions", 0)
@@ -115,7 +109,7 @@ def validate_alpaca_config(config: Dict[str, Any]) -> bool:
     return len(missing_keys) == 0
 
 
-def validate_main_config(config: Dict[str, Any]) -> bool:
+def validate_main_config(config: dict[str, Any]) -> bool:
     """
     Validate main configuration.
 
@@ -135,16 +129,14 @@ def validate_main_config(config: Dict[str, Any]) -> bool:
     if broker:
         available_brokers = get_available_brokers()
         if broker not in available_brokers:
-            logger.error(
-                f"Selected broker '{broker}' not in available brokers: {available_brokers}"
-            )
+            logger.error(f"Selected broker '{broker}' not in available brokers: {available_brokers}")
             return False
         logger.info(f"Broker '{broker}' is available")
 
     return len(missing_keys) == 0
 
 
-def validate_base_config(config: Dict[str, Any]) -> bool:
+def validate_base_config(config: dict[str, Any]) -> bool:
     """
     Validate base configuration.
 
@@ -203,11 +195,11 @@ def validate_full_config() -> bool:
         return True
 
     except Exception as e:
-        logger.error(f"Configuration validation failed: {e}")
+        logger.exception(f"Configuration validation failed: {e}")
         return False
 
 
-def show_config_summary():
+def show_config_summary() -> None:
     """Show a summary of the current configuration."""
     logger.info("Configuration Summary")
     logger.info("=" * 50)
@@ -239,9 +231,7 @@ def show_config_summary():
         from infra.path_utils import get_project_root
 
         project_root = get_project_root()
-        broker_config_path = (
-            project_root / "src" / "brokers" / broker_name / "config.yaml"
-        )
+        broker_config_path = project_root / "src" / "brokers" / broker_name / "config.yaml"
         logger.info(f"Broker config path: {broker_config_path}")
 
         # Show symbols being tracked
@@ -249,22 +239,14 @@ def show_config_summary():
         logger.info(f"Symbols Tracked: {len(symbols)} symbols")
 
     except Exception as e:
-        logger.error(f"Failed to load config for summary: {e}")
+        logger.exception(f"Failed to load config for summary: {e}")
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description="Validate trading system configuration"
-    )
-    parser.add_argument(
-        "--summary", action="store_true", help="Show configuration summary"
-    )
-    parser.add_argument(
-        "--validate", action="store_true", help="Perform full validation"
-    )
-    parser.add_argument(
-        "--quiet", "-q", action="store_true", help="Reduce output verbosity"
-    )
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Validate trading system configuration")
+    parser.add_argument("--summary", action="store_true", help="Show configuration summary")
+    parser.add_argument("--validate", action="store_true", help="Perform full validation")
+    parser.add_argument("--quiet", "-q", action="store_true", help="Reduce output verbosity")
 
     args = parser.parse_args()
 

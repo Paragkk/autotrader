@@ -3,9 +3,9 @@ Position Monitor - Monitors open positions and manages exits
 """
 
 import logging
-from typing import Dict, List, Any, Optional
-from datetime import datetime
 from dataclasses import dataclass
+from datetime import datetime
+from typing import Any
 
 from brokers.base.broker_adapter import BrokerAdapter
 
@@ -31,12 +31,12 @@ class PositionMonitor:
     def __init__(
         self,
         broker_adapter: BrokerAdapter,
-        exit_conditions: Optional[ExitCondition] = None,
-    ):
+        exit_conditions: ExitCondition | None = None,
+    ) -> None:
         self.broker_adapter = broker_adapter
         self.exit_conditions = exit_conditions or ExitCondition()
 
-    async def monitor_positions(self) -> Dict[str, Any]:
+    async def monitor_positions(self) -> dict[str, Any]:
         """
         Monitor all open positions for exit conditions
 
@@ -61,9 +61,7 @@ class PositionMonitor:
                 if exit_signal:
                     exit_signals.append(exit_signal)
 
-            logger.info(
-                f"✅ Position monitoring completed: {len(positions)} positions, {len(exit_signals)} exit signals"
-            )
+            logger.info(f"✅ Position monitoring completed: {len(positions)} positions, {len(exit_signals)} exit signals")
 
             return {
                 "positions_monitored": len(positions),
@@ -72,10 +70,10 @@ class PositionMonitor:
             }
 
         except Exception as e:
-            logger.error(f"❌ Position monitoring failed: {e}")
+            logger.exception(f"❌ Position monitoring failed: {e}")
             return {"error": str(e)}
 
-    async def _check_position_exit(self, position) -> Optional[Dict[str, Any]]:
+    async def _check_position_exit(self, position) -> dict[str, Any] | None:
         """
         Check if a position should be exited
 
@@ -142,7 +140,7 @@ class PositionMonitor:
                 }
 
         except Exception as e:
-            logger.error(f"❌ Error checking exit for {symbol}: {e}")
+            logger.exception(f"❌ Error checking exit for {symbol}: {e}")
 
         return None
 
@@ -159,7 +157,7 @@ class PositionMonitor:
                     return True
 
         except Exception as e:
-            logger.error(f"❌ Error checking holding period: {e}")
+            logger.exception(f"❌ Error checking holding period: {e}")
 
         return False
 
@@ -172,7 +170,7 @@ class PositionMonitor:
             return False
 
         except Exception as e:
-            logger.error(f"❌ Error checking trailing stop: {e}")
+            logger.exception(f"❌ Error checking trailing stop: {e}")
             return False
 
     async def _check_technical_exit(self, symbol: str, side: str) -> bool:
@@ -186,7 +184,7 @@ class PositionMonitor:
             return False
 
         except Exception as e:
-            logger.error(f"❌ Error checking technical exit: {e}")
+            logger.exception(f"❌ Error checking technical exit: {e}")
             return False
 
     def _get_exit_urgency(self, exit_reason: str) -> str:
@@ -201,7 +199,7 @@ class PositionMonitor:
 
         return urgency_map.get(exit_reason, "medium")
 
-    async def get_position_summary(self) -> Dict[str, Any]:
+    async def get_position_summary(self) -> dict[str, Any]:
         """Get summary of all positions"""
         try:
             positions = await self.broker_adapter.get_positions()
@@ -220,9 +218,7 @@ class PositionMonitor:
 
             for position in positions:
                 # Get current price
-                current_price = await self.broker_adapter.get_current_price(
-                    position.symbol
-                )
+                current_price = await self.broker_adapter.get_current_price(position.symbol)
 
                 # Calculate metrics
                 entry_price = float(position.avg_entry_price)
@@ -249,19 +245,17 @@ class PositionMonitor:
                         "current_price": current_price,
                         "market_value": market_value,
                         "unrealized_pnl": unrealized_pnl,
-                        "pnl_percent": unrealized_pnl / (entry_price * abs(quantity))
-                        if entry_price > 0
-                        else 0,
+                        "pnl_percent": unrealized_pnl / (entry_price * abs(quantity)) if entry_price > 0 else 0,
                     }
                 )
 
             return summary
 
         except Exception as e:
-            logger.error(f"❌ Failed to get position summary: {e}")
+            logger.exception(f"❌ Failed to get position summary: {e}")
             return {"error": str(e)}
 
-    async def get_position_alerts(self) -> List[Dict[str, Any]]:
+    async def get_position_alerts(self) -> list[dict[str, Any]]:
         """Get alerts for positions requiring attention"""
         alerts = []
 
@@ -269,16 +263,11 @@ class PositionMonitor:
             positions = await self.broker_adapter.get_positions()
 
             for position in positions:
-                current_price = await self.broker_adapter.get_current_price(
-                    position.symbol
-                )
+                current_price = await self.broker_adapter.get_current_price(position.symbol)
                 entry_price = float(position.avg_entry_price)
 
                 # Calculate P&L percentage
-                if position.side == "long":
-                    pnl_percent = (current_price - entry_price) / entry_price
-                else:
-                    pnl_percent = (entry_price - current_price) / entry_price
+                pnl_percent = (current_price - entry_price) / entry_price if position.side == "long" else (entry_price - current_price) / entry_price
 
                 # Check for alert conditions
                 if pnl_percent <= -0.05:  # 5% loss
@@ -302,9 +291,7 @@ class PositionMonitor:
                     )
 
                 # Check for positions near stop loss
-                if (
-                    abs(pnl_percent + self.exit_conditions.stop_loss_percent) < 0.005
-                ):  # Within 0.5% of stop
+                if abs(pnl_percent + self.exit_conditions.stop_loss_percent) < 0.005:  # Within 0.5% of stop
                     alerts.append(
                         {
                             "symbol": position.symbol,
@@ -315,6 +302,6 @@ class PositionMonitor:
                     )
 
         except Exception as e:
-            logger.error(f"❌ Error generating position alerts: {e}")
+            logger.exception(f"❌ Error generating position alerts: {e}")
 
         return alerts

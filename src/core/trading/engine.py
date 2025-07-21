@@ -2,15 +2,17 @@
 Enhanced Trading Engine - Integrates with orchestrator and advanced strategies
 """
 
-import pandas as pd
 import logging
-from typing import Dict, List, Optional, Any
-from datetime import datetime, timedelta
 from dataclasses import dataclass
-from .indicators import TechnicalIndicators
-from .trade import Trade
-from .portfolio import Portfolio
+from datetime import datetime, timedelta
+from typing import Any
+
+import pandas as pd
+
 from ..broker_adapter import BrokerAdapter, OrderRequest
+from .indicators import TechnicalIndicators
+from .portfolio import Portfolio
+from .trade import Trade
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +28,7 @@ class TradingSignal:
     timestamp: datetime
     strategy: str
     price: float
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
 
 
 @dataclass
@@ -34,7 +36,7 @@ class TradingRule:
     """Trading rule configuration"""
 
     name: str
-    conditions: List[Dict[str, Any]]
+    conditions: list[dict[str, Any]]
     action: str
     weight: float
     enabled: bool = True
@@ -45,17 +47,17 @@ class TradingEngine:
     Enhanced trading engine that manages strategy execution and trading decisions.
     """
 
-    def __init__(self, broker: BrokerAdapter, portfolio: Portfolio):
+    def __init__(self, broker: BrokerAdapter, portfolio: Portfolio) -> None:
         self.broker = broker
         self.portfolio = portfolio
-        self._active_trades: Dict[str, Trade] = {}
-        self._indicators: Optional[TechnicalIndicators] = None
+        self._active_trades: dict[str, Trade] = {}
+        self._indicators: TechnicalIndicators | None = None
         self._trading_data = pd.DataFrame()
-        self._trading_rules: List[TradingRule] = []
-        self._signal_history: List[TradingSignal] = []
+        self._trading_rules: list[TradingRule] = []
+        self._signal_history: list[TradingSignal] = []
         self._strategy_config = {}
 
-    def update_market_data(self, market_data: pd.DataFrame):
+    def update_market_data(self, market_data: pd.DataFrame) -> None:
         """Update market data and recalculate indicators."""
         try:
             self._trading_data = pd.concat([self._trading_data, market_data])
@@ -73,16 +75,15 @@ class TradingEngine:
             logger.debug(f"Updated market data with {len(market_data)} new rows")
 
         except Exception as e:
-            logger.error(f"Failed to update market data: {e}")
+            logger.exception(f"Failed to update market data: {e}")
             raise
 
-    def setup_strategy(self, strategy_config: Dict):
+    def setup_strategy(self, strategy_config: dict) -> None:
         """Setup trading strategy with indicators and signals."""
         try:
             if not self._indicators:
-                raise ValueError(
-                    "No market data available. Call update_market_data first."
-                )
+                msg = "No market data available. Call update_market_data first."
+                raise ValueError(msg)
 
             self._strategy_config = strategy_config
 
@@ -116,15 +117,13 @@ class TradingEngine:
             # Setup trading rules
             self._setup_trading_rules(strategy_config.get("rules", []))
 
-            logger.info(
-                f"Strategy setup completed with {len(self._trading_rules)} rules"
-            )
+            logger.info(f"Strategy setup completed with {len(self._trading_rules)} rules")
 
         except Exception as e:
-            logger.error(f"Failed to setup strategy: {e}")
+            logger.exception(f"Failed to setup strategy: {e}")
             raise
 
-    def _setup_trading_rules(self, rules_config: List[Dict]):
+    def _setup_trading_rules(self, rules_config: list[dict]) -> None:
         """Setup trading rules from configuration"""
         self._trading_rules = []
 
@@ -138,9 +137,7 @@ class TradingEngine:
             )
             self._trading_rules.append(rule)
 
-    def generate_signals(
-        self, symbol: str, current_price: float
-    ) -> List[TradingSignal]:
+    def generate_signals(self, symbol: str, current_price: float) -> list[TradingSignal]:
         """Generate trading signals based on current market conditions"""
         try:
             signals = []
@@ -162,9 +159,7 @@ class TradingEngine:
                 confidence = 0.0
 
                 for condition in rule.conditions:
-                    if not self._evaluate_condition(
-                        condition, latest_data, current_price
-                    ):
+                    if not self._evaluate_condition(condition, latest_data, current_price):
                         conditions_met = False
                         break
                     confidence += condition.get("weight", 1.0)
@@ -189,9 +184,7 @@ class TradingEngine:
                     )
 
                     signals.append(signal)
-                    logger.debug(
-                        f"Generated signal: {signal.signal_type} for {symbol} from {rule.name}"
-                    )
+                    logger.debug(f"Generated signal: {signal.signal_type} for {symbol} from {rule.name}")
 
             # Store signals in history
             self._signal_history.extend(signals)
@@ -203,21 +196,19 @@ class TradingEngine:
             return signals
 
         except Exception as e:
-            logger.error(f"Failed to generate signals for {symbol}: {e}")
+            logger.exception(f"Failed to generate signals for {symbol}: {e}")
             return []
 
-    def _evaluate_condition(
-        self, condition: Dict[str, Any], data: pd.Series, current_price: float
-    ) -> bool:
+    def _evaluate_condition(self, condition: dict[str, Any], data: pd.Series, current_price: float) -> bool:
         """Evaluate a single trading condition"""
         try:
             condition_type = condition["type"]
 
             if condition_type == "price_above":
                 return current_price > condition["value"]
-            elif condition_type == "price_below":
+            if condition_type == "price_below":
                 return current_price < condition["value"]
-            elif condition_type == "sma_crossover":
+            if condition_type == "sma_crossover":
                 sma_short = data.get(f"sma_{condition['short_period']}")
                 sma_long = data.get(f"sma_{condition['long_period']}")
                 if sma_short is not None and sma_long is not None:
@@ -245,11 +236,7 @@ class TradingEngine:
                 macd = data.get("macd")
                 macd_signal = data.get("macd_signal")
                 if macd is not None and macd_signal is not None:
-                    return (
-                        macd > macd_signal
-                        if condition.get("direction") == "bullish"
-                        else macd < macd_signal
-                    )
+                    return macd > macd_signal if condition.get("direction") == "bullish" else macd < macd_signal
 
             return False
 
@@ -261,9 +248,9 @@ class TradingEngine:
         self,
         signal: TradingSignal,
         position_size: float,
-        stop_loss: Optional[float] = None,
-        take_profit: Optional[float] = None,
-    ) -> Optional[Trade]:
+        stop_loss: float | None = None,
+        take_profit: float | None = None,
+    ) -> Trade | None:
         """Execute a trade based on a signal"""
         try:
             # Check if we already have a position
@@ -314,14 +301,12 @@ class TradingEngine:
 
             self._active_trades[signal.symbol] = trade
 
-            logger.info(
-                f"Executed trade: {side} {quantity} {signal.symbol} at {signal.price}"
-            )
+            logger.info(f"Executed trade: {side} {quantity} {signal.symbol} at {signal.price}")
 
             return trade
 
         except Exception as e:
-            logger.error(f"Failed to execute trade for {signal.symbol}: {e}")
+            logger.exception(f"Failed to execute trade for {signal.symbol}: {e}")
             return None
 
     def close_trade(self, symbol: str, reason: str = "Manual close") -> bool:
@@ -364,14 +349,14 @@ class TradingEngine:
             return True
 
         except Exception as e:
-            logger.error(f"Failed to close trade for {symbol}: {e}")
+            logger.exception(f"Failed to close trade for {symbol}: {e}")
             return False
 
-    def get_active_trades(self) -> List[Trade]:
+    def get_active_trades(self) -> list[Trade]:
         """Get all active trades"""
         return list(self._active_trades.values())
 
-    def get_trade_performance(self) -> Dict[str, Any]:
+    def get_trade_performance(self) -> dict[str, Any]:
         """Get trading performance metrics"""
         try:
             active_trades = self.get_active_trades()
@@ -383,22 +368,14 @@ class TradingEngine:
                     current_price = self._get_current_price(trade.symbol)
                     if current_price:
                         if trade.side == "buy":
-                            unrealized_pnl += (
-                                current_price - trade.entry_price
-                            ) * trade.quantity
+                            unrealized_pnl += (current_price - trade.entry_price) * trade.quantity
                         else:
-                            unrealized_pnl += (
-                                trade.entry_price - current_price
-                            ) * trade.quantity
+                            unrealized_pnl += (trade.entry_price - current_price) * trade.quantity
                 except Exception:
                     continue
 
             # Calculate signal statistics
-            recent_signals = [
-                s
-                for s in self._signal_history
-                if s.timestamp > datetime.now() - timedelta(hours=24)
-            ]
+            recent_signals = [s for s in self._signal_history if s.timestamp > datetime.now() - timedelta(hours=24)]
             signal_counts = {}
 
             for signal in recent_signals:
@@ -417,10 +394,10 @@ class TradingEngine:
             }
 
         except Exception as e:
-            logger.error(f"Failed to get trade performance: {e}")
+            logger.exception(f"Failed to get trade performance: {e}")
             return {}
 
-    def _get_current_price(self, symbol: str) -> Optional[float]:
+    def _get_current_price(self, symbol: str) -> float | None:
         """Get current price for a symbol"""
         try:
             # This would normally query real-time data
@@ -431,31 +408,24 @@ class TradingEngine:
         except Exception:
             return None
 
-    def cleanup_old_data(self, days_to_keep: int = 30):
+    def cleanup_old_data(self, days_to_keep: int = 30) -> None:
         """Clean up old trading data and signals"""
         try:
             # Clean up old trading data
             cutoff_date = datetime.now() - timedelta(days=days_to_keep)
 
-            if (
-                not self._trading_data.empty
-                and "timestamp" in self._trading_data.columns
-            ):
-                self._trading_data = self._trading_data[
-                    self._trading_data["timestamp"] > cutoff_date
-                ]
+            if not self._trading_data.empty and "timestamp" in self._trading_data.columns:
+                self._trading_data = self._trading_data[self._trading_data["timestamp"] > cutoff_date]
 
             # Clean up old signals
-            self._signal_history = [
-                s for s in self._signal_history if s.timestamp > cutoff_date
-            ]
+            self._signal_history = [s for s in self._signal_history if s.timestamp > cutoff_date]
 
             logger.info(f"Cleaned up data older than {days_to_keep} days")
 
         except Exception as e:
-            logger.error(f"Failed to cleanup old data: {e}")
+            logger.exception(f"Failed to cleanup old data: {e}")
 
-    def get_strategy_config(self) -> Dict[str, Any]:
+    def get_strategy_config(self) -> dict[str, Any]:
         """Get current strategy configuration"""
         return {
             "config": self._strategy_config,
@@ -476,20 +446,13 @@ class TradingEngine:
         """Get the current market price for a symbol."""
         return self._trading_data.loc[symbol]["close"].iloc[-1]
 
-    def get_trading_metrics(self) -> Dict:
+    def get_trading_metrics(self) -> dict:
         """Get current trading metrics and performance."""
-        current_prices = {
-            symbol: self._get_current_price(symbol)
-            for symbol in set(
-                list(self.portfolio.positions.keys()) + list(self._active_trades.keys())
-            )
-        }
+        current_prices = {symbol: self._get_current_price(symbol) for symbol in set(list(self.portfolio.positions.keys()) + list(self._active_trades.keys()))}
 
         return {
             "portfolio_metrics": self.portfolio.get_portfolio_metrics(current_prices),
             "active_trades": len(self._active_trades),
-            "total_trades": len(
-                self._active_trades
-            ),  # Add historical trades count here
+            "total_trades": len(self._active_trades),  # Add historical trades count here
             "current_positions": len(self.portfolio.positions),
         }

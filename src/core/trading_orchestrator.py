@@ -3,25 +3,27 @@ Advanced Trading Orchestrator - Integrates all trading components
 """
 
 import asyncio
+import contextlib
 import logging
-from typing import Dict, List, Any
-from datetime import datetime, timedelta
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from typing import Any
 
-from .data_fetcher import DataFetcher
-from .strategy_engine import StrategyEngine
-from .signal_aggregator import SignalAggregator
-from .risk_management import RiskManager
-from .news_analyzer import NewsAnalyzer
-from .price_forecaster import PriceForecaster
-from .stock_screener import EnhancedStockScreener, ScreeningCriteria
-from ..db.repository import (
+from src.db.repository import (
+    SignalRepository,
     SQLiteRepository,
     StockDataRepository,
     SymbolRepository,
-    SignalRepository,
 )
-from ..infra.config import create_broker_adapter
+from src.infra.config import create_broker_adapter
+
+from .data_fetcher import DataFetcher
+from .news_analyzer import NewsAnalyzer
+from .price_forecaster import PriceForecaster
+from .risk_management import RiskManager
+from .signal_aggregator import SignalAggregator
+from .stock_screener import EnhancedStockScreener, ScreeningCriteria
+from .strategy_engine import StrategyEngine
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +34,7 @@ class TradingConfig:
 
     # Broker Configuration
     broker_name: str = "alpaca"  # Support for multiple brokers
-    broker_config: Dict[str, Any] = field(default_factory=dict)
+    broker_config: dict[str, Any] = field(default_factory=dict)
 
     # Trading Parameters
     max_positions: int = 10
@@ -40,7 +42,7 @@ class TradingConfig:
     position_size_percent: float = 0.02  # 2% of portfolio per position
 
     # Data Configuration
-    symbols_to_track: List[str] = field(
+    symbols_to_track: list[str] = field(
         default_factory=lambda: [
             "AAPL",
             "GOOGL",
@@ -59,7 +61,7 @@ class TradingConfig:
     enable_automated_screening: bool = True
     screening_interval_minutes: int = 60  # Screen every hour
     max_screened_symbols: int = 50
-    screening_criteria: Dict[str, Any] = field(
+    screening_criteria: dict[str, Any] = field(
         default_factory=lambda: {
             "min_price": 5.0,
             "max_price": 1000.0,
@@ -72,7 +74,7 @@ class TradingConfig:
     )
 
     # Strategy Configuration
-    strategy_weights: Dict[str, float] = field(
+    strategy_weights: dict[str, float] = field(
         default_factory=lambda: {
             "moving_average_crossover": 0.3,
             "rsi_strategy": 0.3,
@@ -98,7 +100,7 @@ class TradingOrchestrator:
     Main orchestrator that coordinates all trading components
     """
 
-    def __init__(self, config: TradingConfig):
+    def __init__(self, config: TradingConfig) -> None:
         self.config = config
         self.is_running = False
         self.last_data_update = None
@@ -110,13 +112,11 @@ class TradingOrchestrator:
         # Initialize components
         self._initialize_components()
 
-    def _initialize_components(self):
+    def _initialize_components(self) -> None:
         """Initialize all trading components"""
         try:
             # Initialize broker using config
-            self.broker_adapter = create_broker_adapter(
-                broker_name=self.config.broker_name, config=self.config.broker_config
-            )
+            self.broker_adapter = create_broker_adapter(broker_name=self.config.broker_name, config=self.config.broker_config)
 
             # Initialize repositories
             self.db_repo = SQLiteRepository("trading.db")
@@ -132,9 +132,7 @@ class TradingOrchestrator:
             )
 
             # Initialize strategy engine
-            self.strategy_engine = StrategyEngine(
-                data_fetcher=self.data_fetcher, signal_repo=self.signal_repo
-            )
+            self.strategy_engine = StrategyEngine(data_fetcher=self.data_fetcher, signal_repo=self.signal_repo)
 
             # Initialize signal aggregator
             self.signal_aggregator = SignalAggregator(
@@ -166,10 +164,10 @@ class TradingOrchestrator:
             logger.info("Trading orchestrator initialized successfully")
 
         except Exception as e:
-            logger.error(f"Failed to initialize trading orchestrator: {e}")
+            logger.exception(f"Failed to initialize trading orchestrator: {e}")
             raise
 
-    async def start(self):
+    async def start(self) -> None:
         """Start the trading orchestrator"""
         if self.is_running:
             logger.warning("Trading orchestrator is already running")
@@ -190,32 +188,29 @@ class TradingOrchestrator:
             await self._main_trading_loop()
 
         except Exception as e:
-            logger.error(f"Error in trading orchestrator: {e}")
+            logger.exception(f"Error in trading orchestrator: {e}")
             raise
         finally:
             self.is_running = False
             logger.info("Trading orchestrator stopped")
 
-    async def stop(self):
+    async def stop(self) -> None:
         """Stop the trading orchestrator"""
         self.is_running = False
 
         # Stop automated screening
         if self.screening_task:
             self.screening_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self.screening_task
-            except asyncio.CancelledError:
-                pass
 
         logger.info("Stopping trading orchestrator...")
 
-    async def _initialize_data(self):
+    async def _initialize_data(self) -> None:
         """Initialize required data for trading"""
         try:
             # Fetch initial symbol list
             logger.info("Fetching symbol list...")
-            # symbols = self.data_fetcher.fetch_symbol_list(['NASDAQ', 'NYSE'])
 
             # Fetch historical data for tracked symbols
             logger.info("Fetching historical data...")
@@ -235,10 +230,10 @@ class TradingOrchestrator:
             logger.info("Data initialization completed")
 
         except Exception as e:
-            logger.error(f"Failed to initialize data: {e}")
+            logger.exception(f"Failed to initialize data: {e}")
             raise
 
-    async def _main_trading_loop(self):
+    async def _main_trading_loop(self) -> None:
         """Main trading loop"""
         logger.info("Starting main trading loop...")
 
@@ -263,10 +258,7 @@ class TradingOrchestrator:
                     self.last_news_update = current_time
 
                 # Update screening data
-                if (
-                    self.config.enable_automated_screening
-                    and self._should_update_screening(current_time)
-                ):
+                if self.config.enable_automated_screening and self._should_update_screening(current_time):
                     await self._update_screening_data()
                     self.last_screening_update = current_time
 
@@ -276,10 +268,7 @@ class TradingOrchestrator:
                     self.last_strategy_evaluation = current_time
 
                 # Update screening data and tracked symbols
-                if (
-                    self.config.enable_automated_screening
-                    and self._should_update_screening(current_time)
-                ):
+                if self.config.enable_automated_screening and self._should_update_screening(current_time):
                     await self._update_screening_data()
 
                 # Execute trades based on signals
@@ -289,7 +278,7 @@ class TradingOrchestrator:
                 await asyncio.sleep(30)  # 30 second intervals
 
             except Exception as e:
-                logger.error(f"Error in main trading loop: {e}")
+                logger.exception(f"Error in main trading loop: {e}")
                 await asyncio.sleep(60)  # Sleep longer on error
 
     async def _is_market_open(self) -> bool:
@@ -333,38 +322,32 @@ class TradingOrchestrator:
         time_diff = current_time - self.last_screening_update
         return time_diff.total_seconds() >= self.config.screening_update_interval
 
-    async def _update_market_data(self):
+    async def _update_market_data(self) -> None:
         """Update market data for tracked symbols"""
         try:
             logger.info("Updating market data...")
 
             # Update incremental data
-            results = self.data_fetcher.fetch_incremental_data(
-                symbols=self.config.symbols_to_track, days_back=1
-            )
+            results = self.data_fetcher.fetch_incremental_data(symbols=self.config.symbols_to_track, days_back=1)
 
             logger.info(f"Updated data for {len(results)} symbols")
 
         except Exception as e:
-            logger.error(f"Failed to update market data: {e}")
+            logger.exception(f"Failed to update market data: {e}")
 
-    async def _update_news_data(self):
+    async def _update_news_data(self) -> None:
         """Update news data for tracked symbols"""
         try:
             logger.info("Updating news data...")
 
             # Fetch news for tracked symbols
-            news_articles = self.data_fetcher.fetch_market_news(
-                symbols=self.config.symbols_to_track, limit=50
-            )
+            news_articles = self.data_fetcher.fetch_market_news(symbols=self.config.symbols_to_track, limit=50)
 
             # Analyze news sentiment
             for symbol in self.config.symbols_to_track:
                 symbol_news = [n for n in news_articles if n["symbol"] == symbol]
                 if symbol_news:
-                    sentiment_analysis = self.news_analyzer.analyze_news_sentiment(
-                        symbol_news
-                    )
+                    sentiment_analysis = self.news_analyzer.analyze_news_sentiment(symbol_news)
 
                     # Generate news-based signals
                     news_signals = self.news_analyzer.generate_news_signals(
@@ -380,9 +363,9 @@ class TradingOrchestrator:
             logger.info("News data updated successfully")
 
         except Exception as e:
-            logger.error(f"Failed to update news data: {e}")
+            logger.exception(f"Failed to update news data: {e}")
 
-    async def _evaluate_strategies(self):
+    async def _evaluate_strategies(self) -> None:
         """Evaluate all strategies and generate signals"""
         try:
             logger.info("Evaluating strategies...")
@@ -404,17 +387,13 @@ class TradingOrchestrator:
                     )
 
                     if len(data) > 30:  # Need sufficient data for forecasting
-                        forecasts = self.price_forecaster.forecast_prices(
-                            symbol=symbol, data=data, days_ahead=5
-                        )
+                        forecasts = self.price_forecaster.forecast_prices(symbol=symbol, data=data, days_ahead=5)
 
                         # Generate forecast-based signals
-                        forecast_signals = (
-                            self.price_forecaster.generate_forecast_signals(
-                                symbol=symbol,
-                                forecasts=forecasts,
-                                current_price=data["close"].iloc[-1],
-                            )
+                        forecast_signals = self.price_forecaster.generate_forecast_signals(
+                            symbol=symbol,
+                            forecasts=forecasts,
+                            current_price=data["close"].iloc[-1],
                         )
 
                         # Store signals
@@ -427,9 +406,9 @@ class TradingOrchestrator:
             logger.info("Strategy evaluation completed")
 
         except Exception as e:
-            logger.error(f"Failed to evaluate strategies: {e}")
+            logger.exception(f"Failed to evaluate strategies: {e}")
 
-    async def _execute_trades(self):
+    async def _execute_trades(self) -> None:
         """Execute trades based on aggregated signals"""
         try:
             logger.info("Executing trades...")
@@ -441,9 +420,7 @@ class TradingOrchestrator:
             # Process each tracked symbol
             for symbol in self.config.symbols_to_track:
                 # Get aggregated signal
-                aggregated_signal = self.signal_aggregator.aggregate_signals(
-                    symbol=symbol, lookback_hours=1
-                )
+                aggregated_signal = self.signal_aggregator.aggregate_signals(symbol=symbol, lookback_hours=1)
 
                 if aggregated_signal is None:
                     continue
@@ -456,36 +433,26 @@ class TradingOrchestrator:
                 )
 
                 if not risk_check.approved:
-                    logger.warning(
-                        f"Trade for {symbol} rejected by risk management: {risk_check.reason}"
-                    )
+                    logger.warning(f"Trade for {symbol} rejected by risk management: {risk_check.reason}")
                     continue
 
                 # Execute trade based on signal
-                if (
-                    aggregated_signal.signal_type == "BUY"
-                    and symbol not in current_symbols
-                ):
+                if aggregated_signal.signal_type == "BUY" and symbol not in current_symbols:
                     await self._execute_buy_order(symbol, aggregated_signal)
-                elif (
-                    aggregated_signal.signal_type == "SELL"
-                    and symbol in current_symbols
-                ):
+                elif aggregated_signal.signal_type == "SELL" and symbol in current_symbols:
                     await self._execute_sell_order(symbol, aggregated_signal)
 
             logger.info("Trade execution completed")
 
         except Exception as e:
-            logger.error(f"Failed to execute trades: {e}")
+            logger.exception(f"Failed to execute trades: {e}")
 
-    async def _execute_buy_order(self, symbol: str, signal):
+    async def _execute_buy_order(self, symbol: str, signal) -> None:
         """Execute a buy order"""
         try:
             # Calculate position size
             account_info = self.broker_adapter.get_account_info()
-            position_value = (
-                account_info.buying_power * self.config.position_size_percent
-            )
+            position_value = account_info.buying_power * self.config.position_size_percent
 
             # Get current price
             current_price = self._get_current_price(symbol)
@@ -519,9 +486,9 @@ class TradingOrchestrator:
             logger.info(f"Buy order submitted for {symbol}: {order_response.order_id}")
 
         except Exception as e:
-            logger.error(f"Failed to execute buy order for {symbol}: {e}")
+            logger.exception(f"Failed to execute buy order for {symbol}: {e}")
 
-    async def _execute_sell_order(self, symbol: str, signal):
+    async def _execute_sell_order(self, symbol: str, signal) -> None:
         """Execute a sell order"""
         try:
             # Get current position
@@ -546,9 +513,9 @@ class TradingOrchestrator:
             logger.info(f"Sell order submitted for {symbol}: {order_response.order_id}")
 
         except Exception as e:
-            logger.error(f"Failed to execute sell order for {symbol}: {e}")
+            logger.exception(f"Failed to execute sell order for {symbol}: {e}")
 
-    async def _start_automated_screening(self):
+    async def _start_automated_screening(self) -> None:
         """Start automated stock screening"""
         logger.info("Starting automated stock screening...")
 
@@ -557,16 +524,10 @@ class TradingOrchestrator:
             min_price=self.config.screening_criteria.get("min_price", 5.0),
             max_price=self.config.screening_criteria.get("max_price", 1000.0),
             min_volume=self.config.screening_criteria.get("min_volume", 100000),
-            min_daily_change=self.config.screening_criteria.get(
-                "min_daily_change", -20.0
-            ),
-            max_daily_change=self.config.screening_criteria.get(
-                "max_daily_change", 20.0
-            ),
+            min_daily_change=self.config.screening_criteria.get("min_daily_change", -20.0),
+            max_daily_change=self.config.screening_criteria.get("max_daily_change", 20.0),
             max_results=self.config.screening_criteria.get("max_results", 50),
-            exclude_penny_stocks=self.config.screening_criteria.get(
-                "exclude_penny_stocks", True
-            ),
+            exclude_penny_stocks=self.config.screening_criteria.get("exclude_penny_stocks", True),
         )
 
         # Start screening task
@@ -579,7 +540,7 @@ class TradingOrchestrator:
 
         logger.info("Automated screening started")
 
-    async def _update_tracked_symbols(self):
+    async def _update_tracked_symbols(self) -> None:
         """Update tracked symbols from screening results"""
         try:
             # Get symbols from screener
@@ -597,10 +558,7 @@ class TradingOrchestrator:
                     screening_results.items(),
                     key=lambda x: x[1].score if x[1] else 0,
                     reverse=True,
-                )[
-                    : self.config.max_screened_symbols
-                    - len(self.config.symbols_to_track)
-                ]
+                )[: self.config.max_screened_symbols - len(self.config.symbols_to_track)]
 
                 screened_symbols = {item[0] for item in top_symbols}
                 all_symbols = set(self.config.symbols_to_track)
@@ -609,14 +567,12 @@ class TradingOrchestrator:
             # Update the symbols to track
             self.config.symbols_to_track = list(all_symbols)
 
-            logger.info(
-                f"Updated tracked symbols: {len(self.config.symbols_to_track)} total symbols"
-            )
+            logger.info(f"Updated tracked symbols: {len(self.config.symbols_to_track)} total symbols")
 
         except Exception as e:
-            logger.error(f"Error updating tracked symbols: {e}")
+            logger.exception(f"Error updating tracked symbols: {e}")
 
-    async def _update_screening_data(self):
+    async def _update_screening_data(self) -> None:
         """Update screening data and tracked symbols"""
         try:
             logger.info("Updating screening data...")
@@ -630,30 +586,22 @@ class TradingOrchestrator:
                     min_price=self.config.screening_criteria.get("min_price", 5.0),
                     max_price=self.config.screening_criteria.get("max_price", 1000.0),
                     min_volume=self.config.screening_criteria.get("min_volume", 100000),
-                    min_daily_change=self.config.screening_criteria.get(
-                        "min_daily_change", -20.0
-                    ),
-                    max_daily_change=self.config.screening_criteria.get(
-                        "max_daily_change", 20.0
-                    ),
+                    min_daily_change=self.config.screening_criteria.get("min_daily_change", -20.0),
+                    max_daily_change=self.config.screening_criteria.get("max_daily_change", 20.0),
                     max_results=self.config.screening_criteria.get("max_results", 50),
-                    exclude_penny_stocks=self.config.screening_criteria.get(
-                        "exclude_penny_stocks", True
-                    ),
+                    exclude_penny_stocks=self.config.screening_criteria.get("exclude_penny_stocks", True),
                 )
 
                 # Get enhanced screening results
-                results = await self.stock_screener.get_prediction_enhanced_screening(
-                    screening_criteria
-                )
+                results = await self.stock_screener.get_prediction_enhanced_screening(screening_criteria)
 
                 self.last_screening_update = datetime.now()
                 logger.info(f"Screening completed: {len(results)} stocks identified")
 
         except Exception as e:
-            logger.error(f"Error updating screening data: {e}")
+            logger.exception(f"Error updating screening data: {e}")
 
-    def get_portfolio_summary(self) -> Dict[str, Any]:
+    def get_portfolio_summary(self) -> dict[str, Any]:
         """Get current portfolio summary"""
         try:
             account_info = self.broker_adapter.get_account_info()
@@ -682,16 +630,14 @@ class TradingOrchestrator:
                 ],
             }
         except Exception as e:
-            logger.error(f"Failed to get portfolio summary: {e}")
+            logger.exception(f"Failed to get portfolio summary: {e}")
             return {}
 
-    def get_recent_signals(self, hours: int = 24) -> List[Dict[str, Any]]:
+    def get_recent_signals(self, hours: int = 24) -> list[dict[str, Any]]:
         """Get recent trading signals"""
         try:
             since_time = datetime.now() - timedelta(hours=hours)
-            signals = self.signal_repo.get_signals_by_time_range(
-                start_time=since_time, end_time=datetime.now()
-            )
+            signals = self.signal_repo.get_signals_by_time_range(start_time=since_time, end_time=datetime.now())
 
             return [
                 {
@@ -705,10 +651,10 @@ class TradingOrchestrator:
                 for signal in signals
             ]
         except Exception as e:
-            logger.error(f"Failed to get recent signals: {e}")
+            logger.exception(f"Failed to get recent signals: {e}")
             return []
 
-    def get_trading_stats(self) -> Dict[str, Any]:
+    def get_trading_stats(self) -> dict[str, Any]:
         """Get trading statistics"""
         try:
             # Get recent signals
@@ -741,10 +687,10 @@ class TradingOrchestrator:
                 },
             }
         except Exception as e:
-            logger.error(f"Failed to get trading stats: {e}")
+            logger.exception(f"Failed to get trading stats: {e}")
             return {}
 
-    def get_screening_summary(self) -> Dict[str, Any]:
+    def get_screening_summary(self) -> dict[str, Any]:
         """Get summary of screening results"""
         try:
             return {
@@ -768,5 +714,5 @@ class TradingOrchestrator:
                 ],
             }
         except Exception as e:
-            logger.error(f"Error getting screening summary: {e}")
+            logger.exception(f"Error getting screening summary: {e}")
             return {}

@@ -4,23 +4,23 @@ FastAPI application for the Advanced Trading System
 
 import logging
 from contextlib import asynccontextmanager
-from typing import Dict, List, Optional, Any
 from datetime import datetime
+from typing import Any, Never
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
-from infra.logging_config import setup_logging
+from api.routes import brokers_router, trading_router
+from core.broker_manager import get_broker_manager, initialize_default_brokers
 from dashboard.manager import DashboardManager
-from core.broker_manager import initialize_default_brokers, get_broker_manager
-from api.routes import trading_router, brokers_router
+from infra.logging_config import setup_logging
 
 logger = logging.getLogger(__name__)
 
 # Global instances
-dashboard_manager: Optional[DashboardManager] = None
+dashboard_manager: DashboardManager | None = None
 
 
 # Utility functions for reducing redundancy
@@ -45,10 +45,7 @@ def get_broker_or_raise():
                 status_code=503,
                 detail=f"Broker {active_broker_name} is not properly connected",
             )
-        else:
-            raise HTTPException(
-                status_code=503, detail="No broker is currently connected"
-            )
+        raise HTTPException(status_code=503, detail="No broker is currently connected")
     return broker
 
 
@@ -69,40 +66,26 @@ async def lifespan(app: FastAPI):
             active_broker_name = broker_manager.get_active_broker_name()
             logger.info(f"[SUCCESS] Connected to active broker: {active_broker_name}")
         else:
-            logger.warning(
-                "[WARNING] No broker connected - system will run in limited mode"
-            )
+            logger.warning("[WARNING] No broker connected - system will run in limited mode")
 
         # Initialize dashboard manager
-        dashboard_manager = DashboardManager(
-            dashboard_port=8501, api_base_url="http://localhost:8080"
-        )
+        dashboard_manager = DashboardManager(dashboard_port=8501, api_base_url="http://localhost:8080")
 
         # Try to start dashboard (non-blocking)
         try:
             if dashboard_manager.start_dashboard():
-                logger.info(
-                    "[SUCCESS] Dashboard started successfully at http://localhost:8501"
-                )
+                logger.info("[SUCCESS] Dashboard started successfully at http://localhost:8501")
             else:
-                logger.warning(
-                    "[WARNING] Dashboard failed to start - continuing without dashboard"
-                )
-                logger.info(
-                    "[INFO] You can start the dashboard manually by running: uv run streamlit run src/dashboard/main.py --server.port 8501"
-                )
+                logger.warning("[WARNING] Dashboard failed to start - continuing without dashboard")
+                logger.info("[INFO] You can start the dashboard manually by running: uv run streamlit run src/dashboard/main.py --server.port 8501")
         except Exception as e:
-            logger.warning(
-                f"[WARNING] Dashboard startup failed: {e} - continuing without dashboard"
-            )
-            logger.info(
-                "[INFO] You can start the dashboard manually by running: uv run streamlit run src/dashboard/main.py --server.port 8501"
-            )
+            logger.warning(f"[WARNING] Dashboard startup failed: {e} - continuing without dashboard")
+            logger.info("[INFO] You can start the dashboard manually by running: uv run streamlit run src/dashboard/main.py --server.port 8501")
 
         yield
 
     except Exception as e:
-        logger.error(f"Failed to start API: {e}")
+        logger.exception(f"Failed to start API: {e}")
         yield
 
     # Shutdown
@@ -115,11 +98,9 @@ async def lifespan(app: FastAPI):
             active_broker_name = broker_manager.get_active_broker_name()
             if active_broker_name:
                 await broker_manager.disconnect_all_brokers()
-                logger.info(
-                    f"[SUCCESS] Disconnected from active broker: {active_broker_name}"
-                )
+                logger.info(f"[SUCCESS] Disconnected from active broker: {active_broker_name}")
         except Exception as e:
-            logger.error(f"Error disconnecting broker: {e}")
+            logger.exception(f"Error disconnecting broker: {e}")
 
         # Stop dashboard
         if dashboard_manager:
@@ -129,7 +110,7 @@ async def lifespan(app: FastAPI):
         logger.info("[COMPLETE] AutoTrader Pro shutdown complete")
 
     except Exception as e:
-        logger.error(f"Error during shutdown: {e}")
+        logger.exception(f"Error during shutdown: {e}")
 
 
 # Create FastAPI app
@@ -166,7 +147,7 @@ class SystemStatusResponse(BaseModel):
 
 
 @app.get("/", response_class=HTMLResponse)
-async def read_root():
+async def read_root() -> str:
     """Main dashboard page"""
     return """
     <!DOCTYPE html>
@@ -199,18 +180,18 @@ async def read_root():
                 <h1>🚀 AutoTrader Pro</h1>
                 <p>Professional Multi-Broker Trading System</p>
             </div>
-            
+
             <div class="card">
                 <h2>📊 System Overview</h2>
                 <div id="systemStatus">Loading system status...</div>
                 <div class="metrics" id="metrics"></div>
             </div>
-            
+
             <div class="card">
                 <h2>🏦 Broker Status</h2>
                 <div id="brokerStatus">Loading broker information...</div>
             </div>
-            
+
             <div class="card">
                 <h2>🔗 Quick Links</h2>
                 <div class="links">
@@ -221,7 +202,7 @@ async def read_root():
                 </div>
                 <div style="margin-top: 20px; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 8px; text-align: center;">
                     <p style="margin: 0; color: white; opacity: 0.8;">
-                        💡 <strong>Dashboard Alternative:</strong> If the Streamlit dashboard link above doesn't work, 
+                        💡 <strong>Dashboard Alternative:</strong> If the Streamlit dashboard link above doesn't work,
                         you can start it manually by running:<br>
                         <code style="background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 4px; margin: 8px;">
                             uv run streamlit run src/dashboard/main.py --server.port 8501
@@ -230,22 +211,22 @@ async def read_root():
                 </div>
             </div>
         </div>
-        
+
         <script>
             async function loadSystemStatus() {
                 try {
                     const response = await fetch('/api/status');
                     const status = await response.json();
-                    
+
                     document.getElementById('systemStatus').innerHTML = `
                         <div class="broker-status">
-                            <strong>System Status:</strong> 
+                            <strong>System Status:</strong>
                             <span class="status-${status.system_running ? 'running' : 'stopped'}">
                                 ${status.system_running ? '🟢 Running' : '🔴 Stopped'}
                             </span>
                         </div>
                     `;
-                    
+
                     document.getElementById('metrics').innerHTML = `
                         <div class="metric">
                             <h3>Active Positions</h3>
@@ -269,26 +250,26 @@ async def read_root():
                     document.getElementById('systemStatus').innerHTML = '<div class="broker-status">❌ Error loading system status</div>';
                 }
             }
-            
+
             async function loadBrokerStatus() {
                 try {
                     const response = await fetch('/api/brokers/status');
                     const brokerData = await response.json();
-                    
+
                     let brokerHtml = '';
-                    
+
                     if (brokerData.connected_brokers && brokerData.connected_brokers.length > 0) {
                         const activeBroker = brokerData.connected_brokers[0];
                         brokerHtml += `
                             <div class="broker-status">
-                                <strong>Active Broker:</strong> ${activeBroker} 
+                                <strong>Active Broker:</strong> ${activeBroker}
                                 <span class="status-running">🟢 Connected</span>
                             </div>
                         `;
                     } else {
                         brokerHtml += '<div class="broker-status">⚠️ No broker connected</div>';
                     }
-                    
+
                     brokerHtml += '<h3>Available Brokers:</h3>';
                     brokerData.available_brokers.forEach(broker => {
                         const statusIcon = broker.connected ? '🟢' : '⚪';
@@ -300,18 +281,18 @@ async def read_root():
                             </div>
                         `;
                     });
-                    
+
                     document.getElementById('brokerStatus').innerHTML = brokerHtml;
                 } catch (error) {
                     console.error('Error loading broker status:', error);
                     document.getElementById('brokerStatus').innerHTML = '<div class="broker-status">❌ Error loading broker information</div>';
                 }
             }
-            
+
             // Load data on page load
             loadSystemStatus();
             loadBrokerStatus();
-            
+
             // Auto-refresh every 30 seconds
             setInterval(() => {
                 loadSystemStatus();
@@ -349,13 +330,13 @@ class TradingSystemStatus(BaseModel):
 
     status: str
     is_running: bool
-    last_data_update: Optional[datetime] = None
-    last_news_update: Optional[datetime] = None
-    last_strategy_evaluation: Optional[datetime] = None
-    last_screening_update: Optional[datetime] = None
-    portfolio_value: Optional[float] = None
+    last_data_update: datetime | None = None
+    last_news_update: datetime | None = None
+    last_strategy_evaluation: datetime | None = None
+    last_screening_update: datetime | None = None
+    portfolio_value: float | None = None
     positions_count: int = 0
-    unrealized_pnl: Optional[float] = None
+    unrealized_pnl: float | None = None
     screening_enabled: bool = False
     tracked_symbols_count: int = 0
 
@@ -380,7 +361,7 @@ class ScreeningResponse(BaseModel):
     daily_change_percent: float
     volume: int
     score: float
-    reasons: List[str]
+    reasons: list[str]
     timestamp: datetime
 
 
@@ -392,21 +373,21 @@ class TradingSignal(BaseModel):
     strength: float
     strategy: str
     timestamp: datetime
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
 
 
 class ConfigUpdate(BaseModel):
     """Configuration update request"""
 
-    symbols_to_track: Optional[List[str]] = None
-    strategy_weights: Optional[Dict[str, float]] = None
-    max_positions: Optional[int] = None
-    position_size_percent: Optional[float] = None
-    stop_loss_percent: Optional[float] = None
-    take_profit_percent: Optional[float] = None
-    enable_automated_screening: Optional[bool] = None
-    screening_interval_minutes: Optional[int] = None
-    max_screened_symbols: Optional[int] = None
+    symbols_to_track: list[str] | None = None
+    strategy_weights: dict[str, float] | None = None
+    max_positions: int | None = None
+    position_size_percent: float | None = None
+    stop_loss_percent: float | None = None
+    take_profit_percent: float | None = None
+    enable_automated_screening: bool | None = None
+    screening_interval_minutes: int | None = None
+    max_screened_symbols: int | None = None
 
 
 class PortfolioSummary(BaseModel):
@@ -418,9 +399,9 @@ class PortfolioSummary(BaseModel):
     positions_count: int
     positions_value: float
     unrealized_pnl: float
-    daily_pnl: Optional[float] = None
+    daily_pnl: float | None = None
     day_trade_count: int
-    positions: List[Dict[str, Any]]
+    positions: list[dict[str, Any]]
     last_updated: datetime
 
 
@@ -453,10 +434,10 @@ class OrderDetail(BaseModel):
     order_type: str
     status: str
     filled_quantity: float
-    price: Optional[float] = None
-    filled_price: Optional[float] = None
+    price: float | None = None
+    filled_price: float | None = None
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: datetime | None = None
     time_in_force: str
 
 
@@ -508,9 +489,7 @@ async def get_portfolio_summary():
             positions_count=len(positions),
             positions_value=sum(float(p.market_value) for p in positions),
             unrealized_pnl=sum(float(p.unrealized_pl) for p in positions),
-            daily_pnl=sum(
-                float(getattr(p, "unrealized_intraday_pl", 0)) for p in positions
-            ),
+            daily_pnl=sum(float(getattr(p, "unrealized_intraday_pl", 0)) for p in positions),
             day_trade_count=getattr(account, "day_trade_count", 0),
             positions=[
                 {
@@ -525,7 +504,7 @@ async def get_portfolio_summary():
         )
 
     except Exception as e:
-        logger.error(f"Failed to get portfolio summary: {e}")
+        logger.exception(f"Failed to get portfolio summary: {e}")
         return PortfolioSummary(
             account_value=0.0,
             cash=0.0,
@@ -539,7 +518,7 @@ async def get_portfolio_summary():
         )
 
 
-@app.get("/api/positions", response_model=List[PositionDetail])
+@app.get("/api/positions", response_model=list[PositionDetail])
 async def get_current_positions():
     """Get detailed list of all current positions from active broker"""
     try:
@@ -558,11 +537,7 @@ async def get_current_positions():
             try:
                 current_price = await broker_manager.get_current_price(position.symbol)
             except Exception:
-                current_price = (
-                    position.market_value / abs(position.qty)
-                    if position.qty != 0
-                    else 0
-                )
+                current_price = position.market_value / abs(position.qty) if position.qty != 0 else 0
 
             position_detail = PositionDetail(
                 symbol=position.symbol,
@@ -576,10 +551,7 @@ async def get_current_positions():
                 cost_basis=float(position.cost_basis),
                 portfolio_percentage=float(getattr(position, "portfolio_pct", 0)) * 100,
                 day_change=float(getattr(position, "unrealized_intraday_pl", 0)),
-                day_change_percent=float(
-                    getattr(position, "unrealized_intraday_plpc", 0)
-                )
-                * 100,
+                day_change_percent=float(getattr(position, "unrealized_intraday_plpc", 0)) * 100,
                 asset_class=getattr(position, "asset_class", "stock"),
                 exchange=getattr(position, "exchange", "NASDAQ"),
             )
@@ -588,7 +560,7 @@ async def get_current_positions():
         return position_details
 
     except Exception as e:
-        logger.error(f"Failed to get positions: {e}")
+        logger.exception(f"Failed to get positions: {e}")
         return []
 
 
@@ -609,22 +581,18 @@ async def get_account_info():
             cash=float(account.cash),
             portfolio_value=float(account.portfolio_value),
             equity=float(account.equity),
-            day_trading_power=float(
-                getattr(account, "day_trading_power", account.buying_power)
-            ),
+            day_trading_power=float(getattr(account, "day_trading_power", account.buying_power)),
             pattern_day_trader=getattr(account, "pattern_day_trader", False),
             day_trade_count=getattr(account, "day_trade_count", 0),
             account_status=getattr(account, "status", "active"),
         )
 
     except Exception as e:
-        logger.error(f"Failed to get account info: {e}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get account info: {str(e)}"
-        )
+        logger.exception(f"Failed to get account info: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get account info: {e!s}")
 
 
-@app.get("/api/orders", response_model=List[OrderDetail])
+@app.get("/api/orders", response_model=list[OrderDetail])
 async def get_recent_orders(limit: int = 50):
     """Get recent orders from active broker"""
     try:
@@ -648,9 +616,7 @@ async def get_recent_orders(limit: int = 50):
                 status=order.status,
                 filled_quantity=float(order.filled_qty),
                 price=float(order.limit_price) if order.limit_price else None,
-                filled_price=float(order.filled_avg_price)
-                if order.filled_avg_price
-                else None,
+                filled_price=float(order.filled_avg_price) if order.filled_avg_price else None,
                 created_at=order.created_at,
                 updated_at=order.updated_at,
                 time_in_force=order.time_in_force,
@@ -660,7 +626,7 @@ async def get_recent_orders(limit: int = 50):
         return order_details
 
     except Exception as e:
-        logger.error(f"Failed to get orders: {e}")
+        logger.exception(f"Failed to get orders: {e}")
         return []
 
 
@@ -675,17 +641,13 @@ async def get_position_by_symbol(symbol: str):
         position = await broker_manager.get_position(symbol.upper())
 
         if not position:
-            raise HTTPException(
-                status_code=404, detail=f"Position for {symbol} not found"
-            )
+            raise HTTPException(status_code=404, detail=f"Position for {symbol} not found")
 
         # Get current price
         try:
             current_price = await broker_manager.get_current_price(position.symbol)
         except Exception:
-            current_price = (
-                position.market_value / abs(position.qty) if position.qty != 0 else 0
-            )
+            current_price = position.market_value / abs(position.qty) if position.qty != 0 else 0
 
         return PositionDetail(
             symbol=position.symbol,
@@ -699,8 +661,7 @@ async def get_position_by_symbol(symbol: str):
             cost_basis=float(position.cost_basis),
             portfolio_percentage=float(getattr(position, "portfolio_pct", 0)) * 100,
             day_change=float(getattr(position, "unrealized_intraday_pl", 0)),
-            day_change_percent=float(getattr(position, "unrealized_intraday_plpc", 0))
-            * 100,
+            day_change_percent=float(getattr(position, "unrealized_intraday_plpc", 0)) * 100,
             asset_class=getattr(position, "asset_class", "stock"),
             exchange=getattr(position, "exchange", "NASDAQ"),
         )
@@ -708,11 +669,11 @@ async def get_position_by_symbol(symbol: str):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to get position for {symbol}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get position: {str(e)}")
+        logger.exception(f"Failed to get position for {symbol}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get position: {e!s}")
 
 
-@app.get("/api/performance", response_model=Dict[str, Any])
+@app.get("/api/performance", response_model=dict[str, Any])
 async def get_performance_metrics():
     """Get portfolio performance metrics from active broker"""
     try:
@@ -736,7 +697,7 @@ async def get_performance_metrics():
         positions = await broker_manager.get_positions()
 
         # Get performance data
-        performance = {
+        return {
             "current_portfolio_value": float(account.portfolio_value),
             "cash": float(account.cash),
             "total_unrealized_pnl": sum(float(p.unrealized_pl) for p in positions),
@@ -751,10 +712,8 @@ async def get_performance_metrics():
             "last_updated": datetime.now(),
         }
 
-        return performance
-
     except Exception as e:
-        logger.error(f"Failed to get performance metrics: {e}")
+        logger.exception(f"Failed to get performance metrics: {e}")
         return {
             "error": str(e),
             "current_portfolio_value": 0.0,
@@ -767,7 +726,7 @@ async def get_performance_metrics():
 
 # Trading Control APIs
 @app.post("/api/start")
-async def start_trading():
+async def start_trading() -> Never:
     """Start the automated trading system"""
     logger.info("Trading system start requested")
     raise HTTPException(
@@ -777,7 +736,7 @@ async def start_trading():
 
 
 @app.post("/api/stop")
-async def stop_trading():
+async def stop_trading() -> Never:
     """Stop the automated trading system"""
     logger.info("Trading system stop requested")
     raise HTTPException(
@@ -814,7 +773,7 @@ async def get_market_status():
         }
 
     except Exception as e:
-        logger.error(f"Failed to get market status: {e}")
+        logger.exception(f"Failed to get market status: {e}")
         return {
             "is_open": False,
             "error": str(e),

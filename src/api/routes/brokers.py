@@ -3,7 +3,6 @@ Broker Management API Routes
 Handles broker connection and status management
 """
 
-from typing import List
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -21,8 +20,8 @@ class BrokerInfo(BaseModel):
 
 
 class BrokerStatusResponse(BaseModel):
-    connected_brokers: List[str]
-    available_brokers: List[BrokerInfo]
+    connected_brokers: list[str]
+    available_brokers: list[BrokerInfo]
 
 
 class BrokerConnectionResponse(BaseModel):
@@ -57,14 +56,10 @@ async def get_broker_status():
             for broker in available_brokers
         ]
 
-        return BrokerStatusResponse(
-            connected_brokers=connected_brokers, available_brokers=broker_list
-        )
+        return BrokerStatusResponse(connected_brokers=connected_brokers, available_brokers=broker_list)
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get broker status: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to get broker status: {e!s}")
 
 
 @router.post("/connect/{broker_name}", response_model=BrokerConnectionResponse)
@@ -95,18 +90,15 @@ async def connect_broker(broker_name: str):
                 message=f"Successfully connected to {broker_name} (now active broker)",
                 broker_name=broker_name,
             )
-        else:
-            return BrokerConnectionResponse(
-                success=False,
-                message=f"Failed to connect to {broker_name}. Check credentials and configuration.",
-            )
+        return BrokerConnectionResponse(
+            success=False,
+            message=f"Failed to connect to {broker_name}. Check credentials and configuration.",
+        )
 
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to connect to broker: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to connect to broker: {e!s}")
 
 
 @router.post("/disconnect/{broker_name}", response_model=BrokerConnectionResponse)
@@ -121,9 +113,7 @@ async def disconnect_broker(broker_name: str):
 
         active_broker_name = broker_manager.get_active_broker_name()
         if not active_broker_name:
-            return BrokerConnectionResponse(
-                success=False, message="No broker is currently connected"
-            )
+            return BrokerConnectionResponse(success=False, message="No broker is currently connected")
 
         if active_broker_name != broker_name:
             return BrokerConnectionResponse(
@@ -140,9 +130,7 @@ async def disconnect_broker(broker_name: str):
         )
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to disconnect broker: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to disconnect broker: {e!s}")
 
 
 @router.post("/disconnect-all", response_model=BrokerConnectionResponse)
@@ -155,9 +143,7 @@ async def disconnect_all_brokers():
 
         active_broker_name = broker_manager.get_active_broker_name()
         if not active_broker_name:
-            return BrokerConnectionResponse(
-                success=False, message="No broker is currently connected"
-            )
+            return BrokerConnectionResponse(success=False, message="No broker is currently connected")
 
         await broker_manager.disconnect_all_brokers()
 
@@ -167,12 +153,10 @@ async def disconnect_all_brokers():
         )
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to disconnect all brokers: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to disconnect all brokers: {e!s}")
 
 
-@router.get("/available", response_model=List[BrokerInfo])
+@router.get("/available", response_model=list[BrokerInfo])
 async def get_available_brokers():
     """
     Get list of available brokers
@@ -194,12 +178,10 @@ async def get_available_brokers():
         ]
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get available brokers: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to get available brokers: {e!s}")
 
 
-@router.get("/connected", response_model=List[BrokerInfo])
+@router.get("/connected", response_model=list[BrokerInfo])
 async def get_connected_brokers():
     """
     Get the currently active broker
@@ -221,9 +203,7 @@ async def get_connected_brokers():
         ]
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get connected brokers: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to get connected brokers: {e!s}")
 
 
 @router.get("/connected/names")
@@ -240,9 +220,7 @@ async def get_connected_broker_names():
         return {"connected_brokers": connected_brokers}
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get connected broker names: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to get connected broker names: {e!s}")
 
 
 @router.get("/active")
@@ -261,9 +239,7 @@ async def get_active_broker():
 
         # Get broker info
         available_brokers = broker_manager.get_available_brokers()
-        active_broker_info = next(
-            (b for b in available_brokers if b["name"] == active_broker_name), None
-        )
+        active_broker_info = next((b for b in available_brokers if b["name"] == active_broker_name), None)
 
         return {
             "active_broker": active_broker_info,
@@ -271,6 +247,4 @@ async def get_active_broker():
         }
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get active broker: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to get active broker: {e!s}")
