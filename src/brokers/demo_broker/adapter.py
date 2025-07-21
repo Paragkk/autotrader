@@ -24,7 +24,7 @@ from ..base import (
 logger = logging.getLogger(__name__)
 
 
-class Demo_BrokerBrokerAdapter(BrokerAdapter):
+class DemoBrokerAdapter(BrokerAdapter):
     """Demo broker adapter implementation - serves as a template for new brokers"""
 
     @property
@@ -132,11 +132,15 @@ class Demo_BrokerBrokerAdapter(BrokerAdapter):
 
         return OrderResponse(
             order_id=f"demo_order_{datetime.now().timestamp()}",
+            client_order_id=order_request.client_order_id,
+            symbol=order_request.symbol,
+            quantity=order_request.quantity,
+            side=order_request.side,
+            order_type=order_request.order_type,
             status=OrderStatus.FILLED,
-            filled_quantity=order_request.quantity,
-            filled_price=100.0,  # Demo price
-            created_at=datetime.now(),
-            updated_at=datetime.now(),
+            filled_qty=order_request.quantity,
+            avg_fill_price=100.0,
+            timestamp=datetime.now(),
         )
 
     async def cancel_order(self, order_id: str) -> bool:
@@ -155,11 +159,15 @@ class Demo_BrokerBrokerAdapter(BrokerAdapter):
         # Simulate order status
         return OrderResponse(
             order_id=order_id,
+            client_order_id=None,
+            symbol="AAPL",
+            quantity=100,
+            side=OrderSide.BUY,
+            order_type=OrderType.MARKET,
             status=OrderStatus.FILLED,
-            filled_quantity=100,
-            filled_price=100.0,
-            created_at=datetime.now() - timedelta(minutes=5),
-            updated_at=datetime.now(),
+            filled_qty=100,
+            avg_fill_price=100.0,
+            timestamp=datetime.now(),
         )
 
     async def get_quote(self, symbol: str) -> Quote:

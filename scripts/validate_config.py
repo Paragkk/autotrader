@@ -16,8 +16,24 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from infra.config import load_config, get_available_brokers
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
+
+# Set up standardized logging for scripts
+def setup_script_logging():
+    """Setup consistent logging for standalone scripts"""
+    root_logger = logging.getLogger()
+    root_logger.handlers.clear()
+    root_logger.setLevel(logging.INFO)
+
+    # Console handler with consistent format
+    console_handler = logging.StreamHandler()
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    console_handler.setFormatter(formatter)
+    root_logger.addHandler(console_handler)
+
+
+setup_script_logging()
 logger = logging.getLogger(__name__)
 
 

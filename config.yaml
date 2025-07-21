@@ -16,42 +16,75 @@ database:
   max_overflow: 30
   echo: false
 
+# Multi-Broker Configuration
+# Each broker can be enabled/disabled independently
+# Only one broker can be active at a time
 brokers:
+  # Alpaca Markets - Commission-free trading
   alpaca:
-    env_vars:
-      api_key: "ALPACA_API_KEY"
-      secret_key: "ALPACA_SECRET_KEY"
-    base_url: "https://paper-api.alpaca.markets"
+    enabled: true
+    display_name: "Alpaca Markets"
+    description: "Commission-free trading with excellent API"
+    # Environment variables for credentials
+    api_key: "${ALPACA_API_KEY}"
+    api_secret: "${ALPACA_SECRET_KEY}" 
+    # Trading configuration
     paper_trading: true
+    base_url: "https://paper-api.alpaca.markets"
     market_data_feed: "iex"
     order_timeout: 60
     max_order_retries: 3
     extended_hours: false
+    # WebSocket configuration
     enable_websocket: true
     websocket_reconnect_attempts: 5
     websocket_reconnect_delay: 5
-    max_bars_per_request: 1000
+    # Rate limiting
     rate_limit_requests_per_minute: 200
+    max_bars_per_request: 1000
     
-  # Interactive Brokers Configuration
+  # Interactive Brokers - Professional trading platform  
   interactive_brokers:
-    # Environment variable mappings for credentials
-    env_vars:
-      api_key: "IB_API_KEY"
-      secret_key: "IB_SECRET_KEY"
-    base_url: "https://api.interactivebrokers.com"
+    enabled: false  # Set to true when ready to use
+    display_name: "Interactive Brokers"
+    description: "Professional trading platform with global markets"
+    # Environment variables for credentials
+    api_key: "${IB_API_KEY}"
+    api_secret: "${IB_SECRET_KEY}"
+    # Trading configuration
     paper_trading: true
+    base_url: "https://api.interactivebrokers.com"
     order_timeout: 120
     max_order_retries: 3
+    # TWS/Gateway settings
+    tws_port: 7497  # 7497 for paper, 7496 for live
+    client_id: 1
     
-  # Demo Broker Configuration (for testing)
+  # Demo Broker - For testing and development
   demo_broker:
-    # Environment variable mappings for credentials
+    enabled: true
+    display_name: "Demo Broker"
+    description: "Simulated trading for testing (no real money)"
+    # Demo credentials (not used for actual trading)
+    api_key: "demo_key"
+    api_secret: "demo_secret"
+    # Configuration
+    paper_trading: true
+    base_url: "https://demo-api.example.com"
+    starting_cash: 100000.0
+    # Simulated market data
+    mock_data: true
+    price_simulation: true
     env_vars:
       api_key: "DEMO_API_KEY"
       secret_key: "DEMO_SECRET_KEY"
     base_url: "https://demo.api.com"
     paper_trading: true
+    order_timeout: 30
+    max_order_retries: 2
+
+# Default broker selection
+default_broker: "alpaca"  # Can be overridden by ACTIVE_BROKER environment variable
 # Trading Configuration
 trading:
   max_positions: 15

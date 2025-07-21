@@ -1,0 +1,13 @@
+[browser]
+gatherUsageStats = false
+
+[server]
+headless = true
+enableXsrfProtection = false
+enableCORS = false
+
+[theme]
+base = "dark"
+
+[client]
+showErrorDetails = false

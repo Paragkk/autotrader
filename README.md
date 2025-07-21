@@ -136,7 +136,9 @@ This starts:
 - **Dashboard** (automatically started at http://localhost:8501)
 - **Redis** (for caching)
 
-### 3. Local Development
+### 3. Local Development with UV
+
+AutoTrader Pro is designed to work seamlessly with [UV](https://docs.astral.sh/uv/), the modern Python package manager.
 
 ```bash
 # Install dependencies with uv
@@ -148,8 +150,32 @@ uv pip install -e .[dashboard]
 # For full development setup
 uv pip install -e .[dev]
 
+# Run the complete system using uv
+uv run python run_complete.py
+
+# Or start individual components
+uv run uvicorn src.api.main:app --host 0.0.0.0 --port 8080 --reload
+uv run streamlit run src/dashboard/main.py --server.port 8501
+
+# Run main trading system
+uv run python src/main_automated.py
+
+# Run tests
+uv run python -m pytest tests/ -v
+
+# Use convenience scripts (Windows)
+scripts\run_with_uv.bat api        # Start API only
+scripts\run_with_uv.bat dashboard  # Start dashboard only
+scripts\run_with_uv.bat complete   # Start complete system
+
+# Use convenience scripts (Linux/macOS)
+chmod +x scripts/run_with_uv.sh
+./scripts/run_with_uv.sh api       # Start API only
+./scripts/run_with_uv.sh dashboard # Start dashboard only
+./scripts/run_with_uv.sh complete  # Start complete system
+
 # Run the system (dashboard starts automatically)
-python run.py
+uv run python run.py
 ```
 
 ### 4. Configuration
