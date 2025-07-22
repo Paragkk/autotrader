@@ -101,7 +101,7 @@ class AlpacaBrokerAdapter(
             account_data = await self._get_without_connection_check("account")
             if account_data:
                 self._connected = True
-                logger.info(f"✅ Connected to Alpaca ({'paper' if self.paper_trading else 'live'} trading)")
+                logger.info(f"[SUCCESS] Connected to Alpaca ({'paper' if self.paper_trading else 'live'} trading)")
                 logger.info(f"Account ID: {account_data.get('id')}")
                 logger.info(f"Account Status: {account_data.get('status')}")
                 return True
@@ -109,7 +109,7 @@ class AlpacaBrokerAdapter(
             raise BrokerConnectionError(msg)
 
         except Exception as e:
-            logger.exception(f"❌ Failed to connect to Alpaca: {e}")
+            logger.exception(f"[ERROR] Failed to connect to Alpaca: {e}")
             msg = f"Alpaca connection failed: {e}"
             raise BrokerConnectionError(msg)
 

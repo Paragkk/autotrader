@@ -93,6 +93,10 @@ class BrokerManager:
             if self.active_broker is not None:
                 await self.disconnect_broker()
 
+            # Mark all brokers as disconnected first
+            for name in self.available_brokers:
+                self.available_brokers[name]["connected"] = False
+
             # Get broker configuration
             broker_info = self.available_brokers[broker_name]
 
@@ -111,6 +115,7 @@ class BrokerManager:
                 broker_info["connected"] = True
 
                 logger.info(f"✅ Successfully connected to {broker_name} (now active broker)")
+                logger.debug(f"Active broker status: {[(name, info['connected']) for name, info in self.available_brokers.items()]}")
                 return True
             logger.error(f"❌ Failed to connect to {broker_name}")
             return False
@@ -286,8 +291,15 @@ async def initialize_default_brokers() -> bool:
     broker_manager = get_broker_manager()
 
     # Get list of brokers to try to connect to
-    default_brokers = os.getenv("DEFAULT_BROKERS", "alpaca,demo_broker").split(",")
-    default_brokers = [broker.strip() for broker in default_brokers]
+    # Check for ACTIVE_BROKER first, then DEFAULT_BROKERS
+    active_broker = os.getenv("ACTIVE_BROKER")
+    if active_broker:
+        default_brokers = [active_broker.strip()]
+        logger.info(f"Using ACTIVE_BROKER environment variable: {active_broker}")
+    else:
+        default_brokers = os.getenv("DEFAULT_BROKERS", "demo_broker").split(",")
+        default_brokers = [broker.strip() for broker in default_brokers]
+        logger.info(f"Using DEFAULT_BROKERS: {default_brokers}")
 
     logger.info(f"Attempting to connect to first available broker from: {default_brokers}")
 

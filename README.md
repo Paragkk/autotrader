@@ -218,9 +218,7 @@ AutoTrader Pro supports multiple brokers with a simple, modular configuration sy
    ALPACA_API_KEY=your_api_key
    ALPACA_SECRET_KEY=your_secret_key
    
-   # For Interactive Brokers
-   IB_API_KEY=your_ib_key
-   IB_SECRET_KEY=your_ib_secret
+
    ```
 
 3. **Set Active Broker**

@@ -46,6 +46,7 @@ dependencies = [
     "dash>=2.14.0",
     "dash-bootstrap-components>=1.5.0",
     "prophet>=1.1.7",
+    "python-multipart>=0.0.20",
 ]
 
 [build-system]

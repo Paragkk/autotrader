@@ -3,6 +3,7 @@ Trading API Routes
 Comprehensive trading operations through REST API
 """
 
+import logging
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException
@@ -11,7 +12,7 @@ from pydantic import BaseModel, Field
 from brokers.base import OrderRequest, OrderSide, OrderType, TimeInForce
 from core.broker_manager import get_broker_manager
 
-router = APIRouter(prefix="/api/trading", tags=["trading"])
+router = APIRouter(prefix="/trading", tags=["trading"])
 
 
 # Request/Response Models
@@ -26,7 +27,7 @@ class PlaceOrderRequest(BaseModel):
     extended_hours: bool = Field(default=False, description="Allow extended hours trading")
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "symbol": "AAPL",
                 "side": "buy",
@@ -264,9 +265,9 @@ async def get_positions():
                 side=pos.side,
                 market_value=pos.market_value,
                 cost_basis=pos.cost_basis,
-                average_entry_price=pos.average_entry_price,
+                average_entry_price=pos.entry_price,
                 unrealized_pl=pos.unrealized_pl,
-                unrealized_plpc=pos.unrealized_plpc,
+                unrealized_plpc=pos.unrealized_pl_percent,
                 current_price=pos.current_price,
             )
             for pos in positions
@@ -300,9 +301,9 @@ async def get_position(symbol: str):
             side=position.side,
             market_value=position.market_value,
             cost_basis=position.cost_basis,
-            average_entry_price=position.average_entry_price,
+            average_entry_price=position.entry_price,
             unrealized_pl=position.unrealized_pl,
-            unrealized_plpc=position.unrealized_plpc,
+            unrealized_plpc=position.unrealized_pl_percent,
             current_price=position.current_price,
         )
 
@@ -364,26 +365,68 @@ async def get_account_info():
     Retrieve account details including cash, portfolio value, and trading permissions.
     """
     try:
+        # Simple, direct approach
+        from core.broker_manager import get_broker_manager, initialize_default_brokers
+
         broker_manager = get_broker_manager()
 
+        # Ensure we have an active broker
         if not broker_manager.active_broker:
-            raise HTTPException(status_code=400, detail="No active broker connected")
+            success = await initialize_default_brokers()
+            if not success or not broker_manager.active_broker:
+                raise HTTPException(status_code=503, detail="No broker connection available")
 
-        account = await broker_manager.get_account_info()
+        # Get account info directly
+        account_info = await broker_manager.active_broker.get_account_info()
 
+        # Create response with explicit field access and validation
         return AccountResponse(
-            account_id=account.account_id,
-            cash=account.cash,
-            portfolio_value=account.portfolio_value,
-            buying_power=account.buying_power,
-            day_trade_count=account.day_trade_count,
-            pattern_day_trader=account.pattern_day_trader,
-            account_status=account.account_status,
-            currency=account.currency,
+            account_id=str(account_info.account_id or "unknown"),
+            cash=float(account_info.cash or 0.0),
+            portfolio_value=float(account_info.portfolio_value or 0.0),
+            buying_power=float(account_info.buying_power or 0.0),
+            day_trade_count=int(account_info.day_trade_count or 0),
+            pattern_day_trader=bool(account_info.pattern_day_trader or False),
+            account_status=str(account_info.account_status or "unknown"),
+            currency=str(account_info.currency or "USD"),
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get account info: {e!s}")
+        raise HTTPException(status_code=500, detail=f"CUSTOM ERROR MESSAGE - Failed to get account info: {e!s}")
+
+
+@router.get("/account-debug", response_model=AccountResponse)
+async def get_account_info_debug():
+    """
+    DEBUG version of account endpoint with direct broker access
+    """
+    try:
+        from core.broker_manager import get_broker_manager, initialize_default_brokers
+
+        # Force broker initialization
+        await initialize_default_brokers()
+
+        broker_manager = get_broker_manager()
+        if not broker_manager.active_broker:
+            raise HTTPException(status_code=503, detail="No active broker after initialization")
+
+        # Get account info directly from active broker
+        account_info = await broker_manager.active_broker.get_account_info()
+
+        # Return with explicit safe defaults
+        return AccountResponse(
+            account_id=account_info.account_id or "demo_account",
+            cash=account_info.cash or 0.0,
+            portfolio_value=account_info.portfolio_value or 0.0,
+            buying_power=account_info.buying_power or 0.0,
+            day_trade_count=account_info.day_trade_count or 0,
+            pattern_day_trader=account_info.pattern_day_trader or False,
+            account_status=account_info.account_status or "active",
+            currency=account_info.currency or "USD",
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"DEBUG ENDPOINT ERROR: {e!s}")
 
 
 @router.get("/quotes/{symbol}", response_model=QuoteResponse)

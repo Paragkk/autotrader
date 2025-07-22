@@ -70,11 +70,11 @@ class DemoBrokerAdapter(BrokerAdapter):
             # 3. Verify account access
 
             self._connected = True
-            logger.info("✅ Connected to Demo Broker successfully")
+            logger.info("[SUCCESS] Connected to Demo Broker successfully")
             return True
 
         except Exception as e:
-            logger.exception(f"❌ Failed to connect to Demo Broker: {e}")
+            logger.exception(f"[ERROR] Failed to connect to Demo Broker: {e}")
             self._connected = False
             msg = f"Demo broker connection failed: {e}"
             raise BrokerConnectionError(msg)
@@ -105,6 +105,9 @@ class DemoBrokerAdapter(BrokerAdapter):
             equity=75000.0,
             day_trading_power=100000.0,
             pattern_day_trader=False,
+            day_trade_count=0,
+            account_status="active",
+            currency="USD",
             broker_specific_data={"demo": True},
         )
 
@@ -114,8 +117,50 @@ class DemoBrokerAdapter(BrokerAdapter):
             msg = "Not connected to Demo Broker"
             raise BrokerConnectionError(msg)
 
-        # Simulate empty positions for demo
-        return []
+        logger.info("Demo Broker: Creating position objects...")
+
+        try:
+            # Simulate some demo positions for testing
+            positions = [
+                Position(
+                    symbol="AAPL",
+                    quantity=50,
+                    side="long",
+                    market_value=8500.0,
+                    cost_basis=8000.0,
+                    entry_price=160.0,
+                    unrealized_pl=500.0,
+                    unrealized_pl_percent=6.25,
+                    current_price=170.0,
+                ),
+                Position(
+                    symbol="MSFT",
+                    quantity=25,
+                    side="long",
+                    market_value=9250.0,
+                    cost_basis=9000.0,
+                    entry_price=360.0,
+                    unrealized_pl=250.0,
+                    unrealized_pl_percent=2.78,
+                    current_price=370.0,
+                ),
+                Position(
+                    symbol="GOOGL",
+                    quantity=10,
+                    side="long",
+                    market_value=2750.0,
+                    cost_basis=2700.0,
+                    entry_price=270.0,
+                    unrealized_pl=50.0,
+                    unrealized_pl_percent=1.85,
+                    current_price=275.0,
+                ),
+            ]
+            logger.info(f"Demo Broker: Successfully created {len(positions)} positions")
+            return positions
+        except Exception as e:
+            logger.error(f"Demo Broker: Failed to create positions: {e}")
+            raise
 
     async def place_order(self, order_request: OrderRequest) -> OrderResponse:
         """Place an order"""

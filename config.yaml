@@ -9,6 +9,15 @@ app:
   environment: "production"  # development, staging, production
   debug: false
 
+# Startup Configuration
+startup:
+  # Set to false to allow app to start without broker connection (limited mode)
+  require_broker: true
+  # Set to false to allow app to start without dashboard
+  require_dashboard: false
+  # Startup timeout in seconds
+  startup_timeout: 30
+
 # Database Configuration
 database:
   url: "sqlite:///data/trading.db"
@@ -42,23 +51,6 @@ brokers:
     # Rate limiting
     rate_limit_requests_per_minute: 200
     max_bars_per_request: 1000
-    
-  # Interactive Brokers - Professional trading platform  
-  interactive_brokers:
-    enabled: false  # Set to true when ready to use
-    display_name: "Interactive Brokers"
-    description: "Professional trading platform with global markets"
-    # Environment variables for credentials
-    api_key: "${IB_API_KEY}"
-    api_secret: "${IB_SECRET_KEY}"
-    # Trading configuration
-    paper_trading: true
-    base_url: "https://api.interactivebrokers.com"
-    order_timeout: 120
-    max_order_retries: 3
-    # TWS/Gateway settings
-    tws_port: 7497  # 7497 for paper, 7496 for live
-    client_id: 1
     
   # Demo Broker - For testing and development
   demo_broker:
@@ -149,7 +141,7 @@ monitoring:
 
 # Logging Configuration
 logging:
-  level: "INFO"
+  level: "WARNING"
   format: "json"
   rotation: "daily"
   retention_days: 30

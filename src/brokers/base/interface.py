@@ -108,6 +108,9 @@ class AccountInfo:
     equity: float
     day_trading_power: float
     pattern_day_trader: bool
+    day_trade_count: int = 0
+    account_status: str = "active"
+    currency: str = "USD"
     broker_specific_data: dict[str, Any] | None = None
 
 

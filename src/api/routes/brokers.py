@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 from core.broker_manager import get_broker_manager
 
-router = APIRouter(prefix="/api/brokers", tags=["brokers"])
+router = APIRouter(prefix="/brokers", tags=["brokers"])
 
 
 # Response Models
@@ -40,11 +40,20 @@ async def get_broker_status():
     try:
         broker_manager = get_broker_manager()
 
+        # Debug logging
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.info(f"DEBUG: Active broker name: {broker_manager.get_active_broker_name()}")
+        logger.info(f"DEBUG: Available brokers state: {[(name, info['connected']) for name, info in broker_manager.available_brokers.items()]}")
+
         # Get connected brokers
         connected_brokers = broker_manager.get_connected_brokers()
+        logger.info(f"DEBUG: Connected brokers: {connected_brokers}")
 
         # Get all available brokers
         available_brokers = broker_manager.get_available_brokers()
+        logger.info(f"DEBUG: Available brokers: {available_brokers}")
 
         broker_list = [
             BrokerInfo(

@@ -7,6 +7,11 @@ This module properly sets up the Python path and imports the FastAPI app
 import sys
 from pathlib import Path
 
+# Load environment variables first
+from dotenv import load_dotenv
+
+load_dotenv()
+
 # Get the project root and src directories
 project_root = Path(__file__).parent
 src_dir = project_root / "src"

@@ -33,6 +33,7 @@ import importlib
 import inspect
 import logging
 import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -41,6 +42,33 @@ import yaml
 from .path_utils import get_project_root
 
 logger = logging.getLogger(__name__)
+
+
+def _substitute_env_vars(obj: Any) -> Any:
+    """
+    Recursively substitute environment variables in configuration objects.
+
+    Replaces ${VAR_NAME} with the value of environment variable VAR_NAME.
+    """
+    if isinstance(obj, dict):
+        return {key: _substitute_env_vars(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [_substitute_env_vars(item) for item in obj]
+    elif isinstance(obj, str):
+        # Pattern to match ${VAR_NAME}
+        pattern = r"\$\{([^}]+)\}"
+
+        def replace_var(match):
+            var_name = match.group(1)
+            env_value = os.getenv(var_name)
+            if env_value is None:
+                logger.warning(f"Environment variable '{var_name}' not found, keeping original value")
+                return match.group(0)  # Return original ${VAR_NAME}
+            return env_value
+
+        return re.sub(pattern, replace_var, obj)
+    else:
+        return obj
 
 
 def resolve_config_path(config_path: str | Path | None = None) -> Path:
@@ -105,6 +133,9 @@ def load_config(config_path: str | Path | None = None) -> dict[str, Any]:
     except yaml.YAMLError as e:
         msg = f"Invalid YAML in configuration file {resolved_path}: {e}"
         raise yaml.YAMLError(msg)
+
+    # Substitute environment variables in the configuration
+    config_data = _substitute_env_vars(config_data)
 
     # Validate that we have broker configuration
     if "brokers" not in config_data:

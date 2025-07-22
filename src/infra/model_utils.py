@@ -273,6 +273,9 @@ def get_field_mappings(broker_name: str) -> dict[str, str]:
             "buying_power": "buying_power",
             "daytrading_buying_power": "day_trading_power",
             "pattern_day_trader": "pattern_day_trader",
+            "daytrade_count": "day_trade_count",
+            "account_blocked": "account_status",
+            "currency": "currency",
         }
     }
 
